@@ -15,6 +15,7 @@ import {
   PageHeader,
   Panel,
   Select,
+  SoftBanner,
   StatusBadge,
 } from "../../components/ui";
 import { useI18n } from "../../i18n";
@@ -138,7 +139,11 @@ export function DocumentsPage() {
         {query.isLoading ? <LoadingBlock label={t.common.loading} /> : null}
         {query.isError ? (
           <div className="p-4">
-            <ErrorBanner message={(query.error as Error).message} />
+            <ErrorBanner
+              message={(query.error as Error).message || t.common.loadFailed}
+              onRetry={() => void query.refetch()}
+              retryLabel={t.common.retry}
+            />
           </div>
         ) : null}
         {query.data && query.data.items.length === 0 ? (
@@ -255,7 +260,9 @@ export function DocumentUploadPage() {
       }>("/api/documents", form, setProgress);
       setResult(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Upload failed");
+      setError(
+        err instanceof Error ? err.message : t.common.actionFailed,
+      );
     } finally {
       setUploading(false);
     }
@@ -273,6 +280,8 @@ export function DocumentUploadPage() {
       <PageHeader
         title={t.documents.uploadTitle}
         description={t.documents.uploadDescription}
+        backTo="/documents"
+        backLabel={t.common.backToDocuments}
       />
       <Panel className="max-w-2xl p-4">
         <form className="space-y-4" onSubmit={onSubmit}>
@@ -283,10 +292,10 @@ export function DocumentUploadPage() {
             }}
             onDragLeave={() => setDragging(false)}
             onDrop={onDrop}
-            className={`rounded-lg border-2 border-dashed px-4 py-10 text-center ${
+            className={`rounded-lg border-2 border-dashed px-4 py-10 text-center transition ${
               dragging
-                ? "border-accent-500 bg-accent-50"
-                : "border-slate-300 bg-slate-50"
+                ? "border-accent-500 bg-accent-50 scale-[1.01]"
+                : "border-slate-300 bg-slate-50 dark:border-slate-600 dark:bg-slate-900/40"
             }`}
           >
             <p className="text-sm font-medium text-ink-900">
@@ -349,13 +358,13 @@ export function DocumentUploadPage() {
 
           {error ? <ErrorBanner message={error} /> : null}
           {result?.duplicateOf ? (
-            <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            <SoftBanner tone="warn">
               {t.documents.existingDocument}: {result.duplicateOf.displayName} (
               {result.duplicateOf.documentId}). {t.documents.duplicateWarn}
-            </div>
+            </SoftBanner>
           ) : null}
           {result ? (
-            <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
+            <SoftBanner tone="ok">
               {t.documents.uploadAccepted}{" "}
               <Link
                 className="font-medium underline"
@@ -363,7 +372,7 @@ export function DocumentUploadPage() {
               >
                 {t.documents.openDocument}
               </Link>
-            </div>
+            </SoftBanner>
           ) : null}
 
           <Button type="submit" disabled={uploading}>

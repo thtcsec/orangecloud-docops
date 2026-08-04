@@ -11,6 +11,7 @@ import {
   LoadingBlock,
   PageHeader,
   Panel,
+  QueryErrorState,
   StatusBadge,
   TextArea,
 } from "../../components/ui";
@@ -58,13 +59,20 @@ export function ReviewPage() {
       qc.invalidateQueries({ queryKey: ["dashboard"] });
     },
     onError: (err) => {
-      setError(err instanceof Error ? err.message : "Decision failed");
+      setError(err instanceof Error ? err.message : t.common.actionFailed);
     },
   });
 
   if (query.isLoading) return <LoadingBlock label={t.common.loading} />;
   if (query.isError) {
-    return <ErrorBanner message={(query.error as Error).message} />;
+    return (
+      <QueryErrorState
+        title={t.review.title}
+        message={(query.error as Error).message || t.common.loadFailed}
+        onRetry={() => void query.refetch()}
+        retryLabel={t.common.retry}
+      />
+    );
   }
 
   const items = query.data!.items;

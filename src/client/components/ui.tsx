@@ -1,26 +1,59 @@
 import type { ReactNode } from "react";
+import { Link } from "react-router-dom";
 import { statusTone } from "../lib/format";
+
+export function BackLink({
+  to,
+  label,
+}: {
+  to: string;
+  label: string;
+}) {
+  return (
+    <Link
+      to={to}
+      className="group mb-3 inline-flex items-center gap-1.5 text-sm font-medium text-ink-500 transition hover:text-accent-600"
+    >
+      <span
+        aria-hidden
+        className="inline-block transition-transform group-hover:-translate-x-0.5"
+      >
+        ←
+      </span>
+      {label}
+    </Link>
+  );
+}
 
 export function PageHeader({
   title,
   description,
   actions,
+  backTo,
+  backLabel,
 }: {
   title: string;
   description?: string;
   actions?: ReactNode;
+  backTo?: string;
+  backLabel?: string;
 }) {
   return (
-    <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-ink-950">
-          {title}
-        </h1>
-        {description ? (
-          <p className="mt-1 max-w-3xl text-sm text-ink-500">{description}</p>
+    <div className="mb-6">
+      {backTo && backLabel ? <BackLink to={backTo} label={backLabel} /> : null}
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-ink-950">
+            {title}
+          </h1>
+          {description ? (
+            <p className="mt-1 max-w-3xl text-sm text-ink-500">{description}</p>
+          ) : null}
+        </div>
+        {actions ? (
+          <div className="flex flex-wrap items-center gap-2">{actions}</div>
         ) : null}
       </div>
-      {actions ? <div className="flex items-center gap-2">{actions}</div> : null}
     </div>
   );
 }
@@ -78,7 +111,7 @@ export function EmptyState({
   action?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col items-start gap-3 px-4 py-10">
+    <div className="animate-fade-in flex flex-col items-start gap-3 px-4 py-10">
       <div>
         <h3 className="text-sm font-semibold text-ink-900">{title}</h3>
         <p className="mt-1 max-w-xl text-sm text-ink-500">{description}</p>
@@ -172,21 +205,97 @@ export function TextArea(
   );
 }
 
-export function ErrorBanner({ message }: { message: string }) {
+export function ErrorBanner({
+  message,
+  onRetry,
+  retryLabel,
+}: {
+  message: string;
+  onRetry?: () => void;
+  retryLabel?: string;
+}) {
   return (
     <div
       role="alert"
-      className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800"
+      className="animate-fade-in flex flex-wrap items-center justify-between gap-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-200"
     >
-      {message}
+      <p className="min-w-0 flex-1">{message}</p>
+      {onRetry ? (
+        <Button
+          variant="secondary"
+          className="shrink-0 border-red-200 text-red-800 hover:bg-red-100 dark:border-red-800 dark:text-red-100 dark:hover:bg-red-950"
+          onClick={onRetry}
+        >
+          {retryLabel || "Retry"}
+        </Button>
+      ) : null}
+    </div>
+  );
+}
+
+export function SoftBanner({
+  tone = "ok",
+  children,
+}: {
+  tone?: "ok" | "warn" | "info";
+  children: ReactNode;
+}) {
+  const styles = {
+    ok: "border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-100",
+    warn: "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-100",
+    info: "border-sky-200 bg-sky-50 text-sky-900 dark:border-sky-900/50 dark:bg-sky-950/40 dark:text-sky-100",
+  }[tone];
+  return (
+    <div className={`animate-fade-in rounded-md border px-3 py-2 text-sm ${styles}`}>
+      {children}
     </div>
   );
 }
 
 export function LoadingBlock({ label = "Loading…" }: { label?: string }) {
   return (
-    <div className="px-4 py-8 text-sm text-ink-500" aria-live="polite">
+    <div
+      className="animate-fade-in flex items-center gap-3 px-4 py-10 text-sm text-ink-500"
+      aria-live="polite"
+    >
+      <span
+        className="inline-block size-4 animate-spin rounded-full border-2 border-slate-300 border-t-accent-500"
+        aria-hidden
+      />
       {label}
+    </div>
+  );
+}
+
+/** Full-page query failure with optional back + retry. */
+export function QueryErrorState({
+  message,
+  onRetry,
+  retryLabel,
+  backTo,
+  backLabel,
+  title,
+}: {
+  message: string;
+  onRetry?: () => void;
+  retryLabel?: string;
+  backTo?: string;
+  backLabel?: string;
+  title?: string;
+}) {
+  return (
+    <div className="animate-fade-in space-y-4">
+      {backTo && backLabel ? <BackLink to={backTo} label={backLabel} /> : null}
+      {title ? (
+        <h1 className="text-2xl font-semibold tracking-tight text-ink-950">
+          {title}
+        </h1>
+      ) : null}
+      <ErrorBanner
+        message={message}
+        onRetry={onRetry}
+        retryLabel={retryLabel}
+      />
     </div>
   );
 }
@@ -201,7 +310,7 @@ export function DataTable({
   return (
     <div className="overflow-x-auto">
       <table className="min-w-full text-left text-sm">
-        <thead className="bg-slate-50 text-xs uppercase tracking-wide text-ink-500">
+        <thead className="bg-slate-50 text-xs uppercase tracking-wide text-ink-500 dark:bg-slate-900/60">
           <tr>
             {headers.map((h) => (
               <th key={h} className="px-4 py-2.5 font-semibold">
@@ -210,7 +319,9 @@ export function DataTable({
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-100">{children}</tbody>
+        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+          {children}
+        </tbody>
       </table>
     </div>
   );

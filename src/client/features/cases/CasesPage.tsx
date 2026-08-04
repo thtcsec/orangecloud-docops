@@ -4,11 +4,11 @@ import { apiGet } from "../../lib/api";
 import { formatDate } from "../../lib/format";
 import {
   EmptyState,
-  ErrorBanner,
   LoadingBlock,
   PageHeader,
   Panel,
   PanelHeader,
+  QueryErrorState,
   StatusBadge,
   DataTable,
 } from "../../components/ui";
@@ -88,7 +88,14 @@ export function CasesPage() {
 
   if (query.isLoading) return <LoadingBlock label={t.common.loading} />;
   if (query.isError) {
-    return <ErrorBanner message={(query.error as Error).message} />;
+    return (
+      <QueryErrorState
+        title={t.cases.title}
+        message={(query.error as Error).message || t.common.loadFailed}
+        onRetry={() => void query.refetch()}
+        retryLabel={t.common.retry}
+      />
+    );
   }
 
   return (
@@ -174,7 +181,16 @@ export function CaseDetailPage() {
 
   if (query.isLoading) return <LoadingBlock label={t.common.loading} />;
   if (query.isError) {
-    return <ErrorBanner message={(query.error as Error).message} />;
+    return (
+      <QueryErrorState
+        title={t.cases.title}
+        backTo="/cases"
+        backLabel={t.common.backToCases}
+        message={(query.error as Error).message || t.common.loadFailed}
+        onRetry={() => void query.refetch()}
+        retryLabel={t.common.retry}
+      />
+    );
   }
   const data = query.data!;
 
@@ -191,6 +207,8 @@ export function CaseDetailPage() {
       <PageHeader
         title={data.case.reference}
         description={`Vendor ${data.case.vendor_name || t.common.none} · Tax ID ${data.case.vendor_tax_id || t.common.none}`}
+        backTo="/cases"
+        backLabel={t.common.backToCases}
       />
 
       <div className="grid gap-4 lg:grid-cols-3">

@@ -10,6 +10,7 @@ import {
   PageHeader,
   Panel,
   PanelHeader,
+  QueryErrorState,
   StatusBadge,
 } from "../../components/ui";
 import { useI18n } from "../../i18n";
@@ -86,7 +87,18 @@ export function DocumentDetailPage() {
 
   if (query.isLoading) return <LoadingBlock label={t.common.loading} />;
   if (query.isError) {
-    return <ErrorBanner message={(query.error as Error).message} />;
+    return (
+      <QueryErrorState
+        title={t.nav.documents}
+        backTo="/documents"
+        backLabel={t.common.backToDocuments}
+        message={
+          (query.error as Error).message || t.common.loadFailed
+        }
+        onRetry={() => void query.refetch()}
+        retryLabel={t.common.retry}
+      />
+    );
   }
   const data = query.data!;
 
@@ -95,11 +107,13 @@ export function DocumentDetailPage() {
       <PageHeader
         title={data.document.display_name}
         description={`${data.document.document_type} · ${data.document.id}`}
+        backTo="/documents"
+        backLabel={t.common.backToDocuments}
         actions={
           <>
             <a
               href={`/api/documents/${documentId}/download`}
-              className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium"
+              className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium transition hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-900 dark:hover:bg-slate-800"
             >
               {t.documentDetail.download}
             </a>
@@ -113,6 +127,16 @@ export function DocumentDetailPage() {
           </>
         }
       />
+      {reprocess.isError ? (
+        <ErrorBanner
+          message={
+            (reprocess.error as Error).message ||
+            t.documentDetail.reprocessFailed
+          }
+          onRetry={() => reprocess.mutate()}
+          retryLabel={t.common.retry}
+        />
+      ) : null}
 
       <div className="grid gap-4 lg:grid-cols-3">
         <Panel className="lg:col-span-1">

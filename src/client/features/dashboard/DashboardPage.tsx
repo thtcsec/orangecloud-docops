@@ -4,11 +4,11 @@ import { apiGet } from "../../lib/api";
 import { formatDate } from "../../lib/format";
 import {
   EmptyState,
-  ErrorBanner,
   LoadingBlock,
   PageHeader,
   Panel,
   PanelHeader,
+  QueryErrorState,
   StatusBadge,
 } from "../../components/ui";
 import { useI18n } from "../../i18n";
@@ -41,7 +41,12 @@ export function DashboardPage() {
   if (query.isLoading) return <LoadingBlock label={t.common.loading} />;
   if (query.isError) {
     return (
-      <ErrorBanner message={(query.error as Error).message || "Failed to load"} />
+      <QueryErrorState
+        title={t.dashboard.title}
+        message={(query.error as Error).message || t.common.loadFailed}
+        onRetry={() => void query.refetch()}
+        retryLabel={t.common.retry}
+      />
     );
   }
 

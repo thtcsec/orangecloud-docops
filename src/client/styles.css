@@ -73,3 +73,32 @@ a {
   outline: 2px solid var(--color-accent-500);
   outline-offset: 2px;
 }
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 220ms ease-out both;
+}
+
+.animate-spin {
+  animation: spin 0.7s linear infinite;
+}
+
+.page-enter {
+  animation: fade-in 240ms ease-out both;
+}

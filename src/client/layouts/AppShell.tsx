@@ -1,4 +1,4 @@
-import { NavLink, Outlet } from "react-router-dom";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { apiGet } from "../lib/api";
 import { BrandLogo } from "../components/BrandLogo";
@@ -22,6 +22,7 @@ type Session = {
 
 export function AppShell() {
   const { t } = useI18n();
+  const location = useLocation();
   const session = useQuery({
     queryKey: ["session"],
     queryFn: () => apiGet<Session>("/api/session"),
@@ -62,7 +63,13 @@ export function AppShell() {
                   {t.session.notAuthenticated}
                 </div>
               ) : (
-                <div>{t.session.resolving}</div>
+                <div className="inline-flex items-center gap-2">
+                  <span
+                    className="inline-block size-3 animate-spin rounded-full border-2 border-slate-300 border-t-accent-500"
+                    aria-hidden
+                  />
+                  {t.session.resolving}
+                </div>
               )}
             </div>
           </div>
@@ -89,7 +96,9 @@ export function AppShell() {
         </nav>
       </header>
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6">
-        <Outlet />
+        <div key={location.pathname} className="page-enter">
+          <Outlet />
+        </div>
       </main>
       <SiteFooter compact />
     </div>

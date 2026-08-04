@@ -36,6 +36,13 @@ export const vi: TranslationSchema = {
     language: "Ngôn ngữ",
     themeLight: "Chế độ sáng",
     themeDark: "Chế độ tối",
+    back: "Quay lại",
+    backToDocuments: "Quay lại chứng từ",
+    backToCases: "Quay lại hồ sơ",
+    backToHome: "Về trang chủ",
+    retry: "Thử lại",
+    loadFailed: "Không tải được. Mạng giật, hoặc bạn chưa đăng nhập.",
+    actionFailed: "Thao tác chưa xong.",
   },
   landing: {
     eyebrow: "Bộ tăng tốc giải pháp Cloudflare",
@@ -148,6 +155,7 @@ export const vi: TranslationSchema = {
   documentDetail: {
     download: "Tải bản gốc",
     reprocess: "Chạy lại",
+    reprocessFailed: "Chưa xếp lại được hàng đợi. Thử lại chút nữa.",
     metadata: "Chi tiết",
     source: "Nguồn",
     uploaded: "Tải lúc",

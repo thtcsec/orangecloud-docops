@@ -5,6 +5,7 @@ import {
   ThemeToggle,
 } from "../../components/HeaderControls";
 import { SiteFooter } from "../../components/SiteFooter";
+import { BackLink } from "../../components/ui";
 import { useI18n } from "../../i18n";
 
 export function PrivacyPage() {
@@ -23,7 +24,8 @@ export function PrivacyPage() {
           </div>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10">
+      <main className="page-enter mx-auto w-full max-w-3xl flex-1 px-4 py-10">
+        <BackLink to="/" label={t.common.backToHome} />
         <h1 className="text-2xl font-semibold text-ink-950">{t.privacy.title}</h1>
         <p className="mt-2 text-sm text-ink-500">{t.privacy.updated}</p>
         <div className="mt-6 space-y-4 text-sm leading-relaxed text-ink-700">

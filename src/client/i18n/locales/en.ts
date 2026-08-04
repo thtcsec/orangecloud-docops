@@ -34,6 +34,13 @@ export const en = {
     language: "Language",
     themeLight: "Switch to light mode",
     themeDark: "Switch to dark mode",
+    back: "Back",
+    backToDocuments: "Back to documents",
+    backToCases: "Back to cases",
+    backToHome: "Back home",
+    retry: "Try again",
+    loadFailed: "Couldn’t load this. Network hiccup, or you’re not signed in.",
+    actionFailed: "That didn’t go through.",
   },
   landing: {
     eyebrow: "A Cloudflare solution accelerator",
@@ -147,6 +154,7 @@ export const en = {
   documentDetail: {
     download: "Download original",
     reprocess: "Run again",
+    reprocessFailed: "Couldn’t queue a reprocess. Try again in a moment.",
     metadata: "Details",
     source: "Source",
     uploaded: "Uploaded",

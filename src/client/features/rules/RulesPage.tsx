@@ -1,10 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiGet } from "../../lib/api";
 import {
-  ErrorBanner,
   LoadingBlock,
   PageHeader,
   Panel,
+  QueryErrorState,
   StatusBadge,
 } from "../../components/ui";
 import { useI18n } from "../../i18n";
@@ -29,7 +29,14 @@ export function RulesPage() {
 
   if (query.isLoading) return <LoadingBlock label={t.common.loading} />;
   if (query.isError) {
-    return <ErrorBanner message={(query.error as Error).message} />;
+    return (
+      <QueryErrorState
+        title={t.rules.title}
+        message={(query.error as Error).message || t.common.loadFailed}
+        onRetry={() => void query.refetch()}
+        retryLabel={t.common.retry}
+      />
+    );
   }
 
   return (

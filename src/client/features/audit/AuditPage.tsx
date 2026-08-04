@@ -108,8 +108,14 @@ export function AuditPage() {
               message={
                 query.error instanceof ApiError && query.error.status === 403
                   ? t.audit.adminOnly
-                  : (query.error as Error).message
+                  : (query.error as Error).message || t.common.loadFailed
               }
+              onRetry={
+                query.error instanceof ApiError && query.error.status === 403
+                  ? undefined
+                  : () => void query.refetch()
+              }
+              retryLabel={t.common.retry}
             />
           </div>
         ) : null}
