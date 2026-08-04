@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
@@ -18,12 +20,29 @@
   --color-warn-600: #a16207;
   --color-danger-600: #b91c1c;
   --color-info-600: #1d4ed8;
+  --color-surface: #ffffff;
+  --color-page: #f3f4f9;
 }
 
 html,
 body,
 #root {
   height: 100%;
+}
+
+html.dark {
+  color-scheme: dark;
+  --color-ink-950: #f8fafc;
+  --color-ink-900: #e2e8f0;
+  --color-ink-800: #cbd5e1;
+  --color-ink-700: #94a3b8;
+  --color-ink-500: #94a3b8;
+  --color-ink-300: #475569;
+  --color-ink-100: #1e293b;
+  --color-ink-50: #0f172a;
+  --color-accent-50: #431407;
+  --color-surface: #111827;
+  --color-page: #0b1220;
 }
 
 body {
@@ -33,6 +52,12 @@ body {
   background:
     radial-gradient(1200px 500px at 0% -10%, #fff1e6 0%, transparent 55%),
     linear-gradient(180deg, #f8fafc 0%, #eef2f6 100%);
+}
+
+html.dark body {
+  background:
+    radial-gradient(900px 420px at 0% -10%, #431407 0%, transparent 50%),
+    linear-gradient(180deg, #0b1220 0%, #111827 100%);
 }
 
 * {

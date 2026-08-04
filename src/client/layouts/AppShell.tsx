@@ -1,7 +1,13 @@
 import { NavLink, Outlet } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { apiGet } from "../lib/api";
-import { LanguageSwitcher, useI18n } from "../i18n";
+import { BrandLogo } from "../components/BrandLogo";
+import {
+  LanguageToggle,
+  ThemeToggle,
+} from "../components/HeaderControls";
+import { SiteFooter } from "../components/SiteFooter";
+import { useI18n } from "../i18n";
 
 type Session = {
   user: {
@@ -32,25 +38,15 @@ export function AppShell() {
   ];
 
   return (
-    <div className="min-h-full">
-      <header className="border-b border-slate-200/80 bg-white/90 backdrop-blur">
+    <div className="flex min-h-full flex-col">
+      <header className="border-b border-slate-200/80 bg-white/90 backdrop-blur dark:border-slate-800 dark:bg-slate-950/80">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3">
+          <NavLink to="/" className="flex items-center" aria-label={t.brand.name}>
+            <BrandLogo variant="auto" className="h-8 w-auto max-w-[220px]" />
+          </NavLink>
           <div className="flex items-center gap-3">
-            <NavLink
-              to="/"
-              className="flex h-9 w-9 items-center justify-center rounded-md bg-accent-600 text-sm font-bold text-white"
-            >
-              OC
-            </NavLink>
-            <div>
-              <div className="text-sm font-semibold text-ink-950">
-                {t.brand.name}
-              </div>
-              <div className="text-xs text-ink-500">{t.brand.tagline}</div>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <LanguageSwitcher />
+            <LanguageToggle />
+            <ThemeToggle />
             <div className="text-right text-xs text-ink-500">
               {session.data ? (
                 <>
@@ -62,7 +58,9 @@ export function AppShell() {
                   </div>
                 </>
               ) : session.isError ? (
-                <div className="text-red-700">{t.session.notAuthenticated}</div>
+                <div className="text-red-700 dark:text-red-400">
+                  {t.session.notAuthenticated}
+                </div>
               ) : (
                 <div>{t.session.resolving}</div>
               )}
@@ -80,8 +78,8 @@ export function AppShell() {
               className={({ isActive }) =>
                 `rounded-md px-3 py-1.5 text-sm font-medium transition ${
                   isActive
-                    ? "bg-accent-50 text-accent-600"
-                    : "text-ink-700 hover:bg-slate-100"
+                    ? "bg-accent-50 text-accent-600 dark:bg-orange-950/50"
+                    : "text-ink-700 hover:bg-slate-100 dark:hover:bg-slate-800"
                 }`
               }
             >
@@ -90,9 +88,10 @@ export function AppShell() {
           ))}
         </nav>
       </header>
-      <main className="mx-auto max-w-7xl px-4 py-6">
+      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6">
         <Outlet />
       </main>
+      <SiteFooter compact />
     </div>
   );
 }

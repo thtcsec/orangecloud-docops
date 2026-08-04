@@ -70,21 +70,3 @@ export function useI18n() {
   if (!ctx) throw new Error("useI18n must be used within I18nProvider");
   return ctx;
 }
-
-export function LanguageSwitcher({ className = "" }: { className?: string }) {
-  const { locale, setLocale, t } = useI18n();
-  return (
-    <label className={`inline-flex items-center gap-2 text-xs text-ink-500 ${className}`}>
-      <span className="sr-only">{t.common.language}</span>
-      <select
-        aria-label={t.common.language}
-        value={locale}
-        onChange={(e) => setLocale(e.target.value as Locale)}
-        className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-ink-800"
-      >
-        <option value="vi">Tiếng Việt</option>
-        <option value="en">English</option>
-      </select>
-    </label>
-  );
-}

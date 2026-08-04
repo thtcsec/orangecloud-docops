@@ -28,5 +28,8 @@ Thumbs.db
 coverage/
 .vitest/
 
+# Auto-traced PNG→SVG junk (lost color / jagged paths — do not ship)
+ChatGPT-Image-*.svg
+
 # Local D1 / Miniflare state
 .mf/
