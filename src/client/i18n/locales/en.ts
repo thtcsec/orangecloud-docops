@@ -99,6 +99,9 @@ export const en = {
     title: "What’s moving today",
     description:
       "A quick pulse on documents, reviews, and open cases — only from real records, never fake charts.",
+    heroAlt:
+      "Illustration: contracts, purchase orders, and invoices meeting in a private cloud trail",
+    heroCaption: "Contract → PO → invoice. Same trail. Human when it matters.",
     upload: "Upload a document",
     totalDocuments: "Documents",
     processing: "In the works",

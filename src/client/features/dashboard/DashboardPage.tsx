@@ -63,18 +63,34 @@ export function DashboardPage() {
 
   return (
     <div>
-      <PageHeader
-        title={t.dashboard.title}
-        description={t.dashboard.description}
-        actions={
-          <Link
-            to="/documents/upload"
-            className="rounded-md bg-accent-600 px-3 py-2 text-sm font-medium text-white hover:bg-accent-500"
-          >
-            {t.dashboard.upload}
-          </Link>
-        }
-      />
+      <Panel className="mb-6 overflow-hidden">
+        <div className="grid items-stretch lg:grid-cols-[1.15fr_1fr]">
+          <div className="flex flex-col justify-center gap-4 px-5 py-6 sm:px-7 sm:py-8">
+            <PageHeader
+              className=""
+              title={t.dashboard.title}
+              description={t.dashboard.description}
+              actions={
+                <Link
+                  to="/documents/upload"
+                  className="rounded-md bg-accent-600 px-3.5 py-2.5 text-[0.95rem] font-medium text-white transition hover:bg-accent-500"
+                >
+                  {t.dashboard.upload}
+                </Link>
+              }
+            />
+            <p className="text-base text-ink-500">{t.dashboard.heroCaption}</p>
+          </div>
+          <div className="relative min-h-[180px] border-t border-slate-100 bg-gradient-to-br from-orange-50/80 to-slate-50 dark:border-slate-800 dark:from-orange-950/30 dark:to-slate-900 lg:min-h-full lg:border-l lg:border-t-0">
+            <img
+              src="/illustrations/docops-dashboard-hero.png"
+              alt={t.dashboard.heroAlt}
+              className="h-full w-full object-cover object-center animate-fade-in"
+              loading="eager"
+            />
+          </div>
+        </div>
+      </Panel>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         {cards.map((card) => (
@@ -102,7 +118,7 @@ export function DashboardPage() {
               action={
                 <Link
                   to="/documents/upload"
-                  className="text-sm font-medium text-accent-600 hover:underline"
+                  className="text-base font-medium text-accent-600 hover:underline"
                 >
                   {t.dashboard.goUpload}
                 </Link>
@@ -114,7 +130,7 @@ export function DashboardPage() {
               description={t.dashboard.noAuditBody}
             />
           ) : (
-            <ul className="divide-y divide-slate-100">
+            <ul className="divide-y divide-slate-100 dark:divide-slate-800">
               {data.recentAudit.map((event) => (
                 <li
                   key={event.id}
@@ -122,11 +138,11 @@ export function DashboardPage() {
                 >
                   <div>
                     <div className="font-medium text-ink-900">{event.action}</div>
-                    <div className="text-xs text-ink-500">
+                    <div className="text-sm text-ink-500">
                       {event.entity_type}:{event.entity_id}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 text-xs text-ink-500">
+                  <div className="flex items-center gap-2 text-sm text-ink-500">
                     <StatusBadge status={event.action.split(".").pop() || "event"} />
                     <span>{formatDate(event.created_at)}</span>
                   </div>

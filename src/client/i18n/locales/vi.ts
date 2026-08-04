@@ -101,6 +101,9 @@ export const vi: TranslationSchema = {
     title: "Hôm nay đang chạy gì",
     description:
       "Nhịp nhanh về chứng từ, rà soát và hồ sơ mở — chỉ số thật, không chart giả.",
+    heroAlt:
+      "Minh họa: hợp đồng, PO và hoá đơn gặp nhau trên một mạch cloud riêng tư",
+    heroCaption: "Hợp đồng → PO → hoá đơn. Cùng một mạch. Có người khi cần.",
     upload: "Tải chứng từ",
     totalDocuments: "Chứng từ",
     processing: "Đang làm",

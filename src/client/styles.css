@@ -24,6 +24,10 @@
   --color-page: #f3f4f9;
 }
 
+html {
+  font-size: 106.25%; /* ~17px — slightly larger body scale */
+}
+
 html,
 body,
 #root {

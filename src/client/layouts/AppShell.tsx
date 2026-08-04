@@ -48,7 +48,7 @@ export function AppShell() {
           <div className="flex items-center gap-3">
             <LanguageToggle />
             <ThemeToggle />
-            <div className="text-right text-xs text-ink-500">
+            <div className="text-right text-sm text-ink-500">
               {session.data ? (
                 <>
                   <div className="font-medium text-ink-800">
@@ -83,7 +83,7 @@ export function AppShell() {
               key={item.to}
               to={item.to}
               className={({ isActive }) =>
-                `rounded-md px-3 py-1.5 text-sm font-medium transition ${
+                `rounded-md px-3 py-2 text-[0.95rem] font-medium transition ${
                   isActive
                     ? "bg-accent-50 text-accent-600 dark:bg-orange-950/50"
                     : "text-ink-700 hover:bg-slate-100 dark:hover:bg-slate-800"
