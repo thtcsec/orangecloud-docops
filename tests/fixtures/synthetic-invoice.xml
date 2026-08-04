@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SYNTHETIC TEST FIXTURE — not a real invoice -->
+<HDon>
+  <DLHDon>
+    <TTChung>
+      <SHDon>INV-SYN-9001</SHDon>
+      <NLap>2026-07-15</NLap>
+      <MCCQT>SYNTHETIC</MCCQT>
+    </TTChung>
+    <NDHDon>
+      <NBan>
+        <Ten>Northern Widget Supplies LLC (SYNTHETIC)</Ten>
+        <MST>TAX-SYN-000111222</MST>
+      </NBan>
+      <NMua>
+        <Ten>Acme Synthetic Trading Co.</Ten>
+        <MST>TAX-SYN-999888777</MST>
+      </NMua>
+      <TgTTTBSo>12500000</TgTTTBSo>
+    </NDHDon>
+  </DLHDon>
+</HDon>

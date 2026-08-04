@@ -1,0 +1,188 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "orangecloud-docops",
+  "compatibility_date": "2026-08-04",
+  "compatibility_flags": ["nodejs_compat"],
+  "main": "./src/worker/index.ts",
+  "assets": {
+    "not_found_handling": "single-page-application",
+    "binding": "ASSETS"
+  },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  },
+  // Local / default bindings. Replace placeholder IDs after creating resources.
+  // Local D1 uses preview_database_id / --local; remote IDs are for staging/production.
+  "vars": {
+    "ENVIRONMENT": "local",
+    "APP_BASE_URL": "http://localhost:5173",
+    "LOCAL_DEV_AUTH_ENABLED": "true",
+    "MAX_UPLOAD_BYTES": "10485760",
+    "PROCESSING_VERSION": "v1"
+  },
+  "d1_databases": [
+    {
+      "binding": "DOCOPS_DB",
+      "database_name": "orangecloud-docops-local",
+      "database_id": "00000000-0000-0000-0000-000000000001",
+      "migrations_dir": "src/worker/db/migrations"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "DOCUMENTS_BUCKET",
+      "bucket_name": "orangecloud-docops-documents-local"
+    }
+  ],
+  "queues": {
+    "producers": [
+      {
+        "binding": "PROCESSING_QUEUE",
+        "queue": "orangecloud-docops-processing-local"
+      }
+    ],
+    "consumers": [
+      {
+        "queue": "orangecloud-docops-processing-local",
+        "max_batch_size": 5,
+        "max_batch_timeout": 5,
+        "max_retries": 5,
+        "dead_letter_queue": "orangecloud-docops-processing-dlq-local",
+        "retry_delay": 30
+      }
+    ]
+  },
+  "workflows": [
+    {
+      "binding": "DOCUMENT_WORKFLOW",
+      "name": "orangecloud-docops-document-workflow-local",
+      "class_name": "DocumentProcessingWorkflow"
+    }
+  ],
+  // AI is declared for staging/production Phase 2 readiness.
+  // Omit from local default config to avoid remote AI proxy during vitest/dev.
+  "workers_dev": true,
+  "env": {
+    "staging": {
+      "name": "orangecloud-docops-stg",
+      "workers_dev": false,
+      "routes": [
+        {
+          "pattern": "docops-stg.orangecloud.vn",
+          "custom_domain": true
+        }
+      ],
+      "vars": {
+        "ENVIRONMENT": "staging",
+        "APP_BASE_URL": "https://docops-stg.orangecloud.vn",
+        "LOCAL_DEV_AUTH_ENABLED": "false",
+        "MAX_UPLOAD_BYTES": "26214400",
+        "PROCESSING_VERSION": "v1"
+      },
+      "d1_databases": [
+        {
+          "binding": "DOCOPS_DB",
+          "database_name": "orangecloud-docops-stg",
+          // Replace after: npx wrangler d1 create orangecloud-docops-stg
+          "database_id": "REPLACE_WITH_STAGING_D1_DATABASE_ID",
+          "migrations_dir": "src/worker/db/migrations"
+        }
+      ],
+      "r2_buckets": [
+        {
+          "binding": "DOCUMENTS_BUCKET",
+          "bucket_name": "orangecloud-docops-documents-stg"
+        }
+      ],
+      "queues": {
+        "producers": [
+          {
+            "binding": "PROCESSING_QUEUE",
+            "queue": "orangecloud-docops-processing-stg"
+          }
+        ],
+        "consumers": [
+          {
+            "queue": "orangecloud-docops-processing-stg",
+            "max_batch_size": 10,
+            "max_batch_timeout": 5,
+            "max_retries": 8,
+            "dead_letter_queue": "orangecloud-docops-processing-dlq-stg",
+            "retry_delay": 60
+          }
+        ]
+      },
+      "workflows": [
+        {
+          "binding": "DOCUMENT_WORKFLOW",
+          "name": "orangecloud-docops-document-workflow-stg",
+          "class_name": "DocumentProcessingWorkflow"
+        }
+      ],
+      "ai": {
+        "binding": "AI"
+      }
+    },
+    "production": {
+      "name": "orangecloud-docops",
+      "workers_dev": false,
+      "routes": [
+        {
+          "pattern": "docops.orangecloud.vn",
+          "custom_domain": true
+        }
+      ],
+      "vars": {
+        "ENVIRONMENT": "production",
+        "APP_BASE_URL": "https://docops.orangecloud.vn",
+        "LOCAL_DEV_AUTH_ENABLED": "false",
+        "MAX_UPLOAD_BYTES": "52428800",
+        "PROCESSING_VERSION": "v1"
+      },
+      "d1_databases": [
+        {
+          "binding": "DOCOPS_DB",
+          "database_name": "orangecloud-docops-prod",
+          // Replace after: npx wrangler d1 create orangecloud-docops-prod
+          "database_id": "REPLACE_WITH_PRODUCTION_D1_DATABASE_ID",
+          "migrations_dir": "src/worker/db/migrations"
+        }
+      ],
+      "r2_buckets": [
+        {
+          "binding": "DOCUMENTS_BUCKET",
+          "bucket_name": "orangecloud-docops-documents-prod"
+        }
+      ],
+      "queues": {
+        "producers": [
+          {
+            "binding": "PROCESSING_QUEUE",
+            "queue": "orangecloud-docops-processing-prod"
+          }
+        ],
+        "consumers": [
+          {
+            "queue": "orangecloud-docops-processing-prod",
+            "max_batch_size": 10,
+            "max_batch_timeout": 5,
+            "max_retries": 8,
+            "dead_letter_queue": "orangecloud-docops-processing-dlq-prod",
+            "retry_delay": 60
+          }
+        ]
+      },
+      "workflows": [
+        {
+          "binding": "DOCUMENT_WORKFLOW",
+          "name": "orangecloud-docops-document-workflow-prod",
+          "class_name": "DocumentProcessingWorkflow"
+        }
+      ],
+      "ai": {
+        "binding": "AI"
+      }
+    }
+  }
+}

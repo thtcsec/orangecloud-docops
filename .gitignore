@@ -1,0 +1,32 @@
+# Dependencies
+node_modules/
+
+# Build
+dist/
+.wrangler/
+.vite/
+*.tsbuildinfo
+
+# Env / secrets
+.dev.vars
+.env
+.env.*
+!.env.example
+!.dev.vars.example
+
+# Logs / OS
+*.log
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Test / coverage
+coverage/
+.vitest/
+
+# Local D1 / Miniflare state
+.mf/

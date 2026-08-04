@@ -1,0 +1,11 @@
+# Copy to .dev.vars for local development only.
+# Never enable these values outside ENVIRONMENT=local.
+
+# Explicit local identity bypass — disabled unless LOCAL_DEV_AUTH_ENABLED=true in wrangler vars.
+LOCAL_DEV_AUTH_EMAIL=admin@docops.local
+LOCAL_DEV_AUTH_ROLE=admin
+LOCAL_DEV_AUTH_DISPLAY_NAME=Local Admin
+
+# Optional Access JWT audience for staging/production validation (set via wrangler secret).
+# CF_ACCESS_AUD=
+# CF_ACCESS_TEAM_DOMAIN=
