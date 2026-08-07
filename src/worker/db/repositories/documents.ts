@@ -369,6 +369,46 @@ export async function listExtractedFields(
   );
 }
 
+export async function createExtractedField(
+  db: Db,
+  row: ExtractedFieldRow,
+): Promise<void> {
+  await db
+    .prepare(
+      `INSERT INTO extracted_fields (
+        id, processing_run_id, document_version_id, field_name, raw_value,
+        normalized_value, value_type, confidence, source_kind, source_reference,
+        provider, model_version, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .bind(
+      row.id,
+      row.processing_run_id,
+      row.document_version_id,
+      row.field_name,
+      row.raw_value,
+      row.normalized_value,
+      row.value_type,
+      row.confidence,
+      row.source_kind,
+      row.source_reference,
+      row.provider,
+      row.model_version,
+      row.created_at,
+    )
+    .run();
+}
+
+export async function clearExtractedFieldsForRun(
+  db: Db,
+  processingRunId: string,
+): Promise<void> {
+  await db
+    .prepare(`DELETE FROM extracted_fields WHERE processing_run_id = ?`)
+    .bind(processingRunId)
+    .run();
+}
+
 export async function getLatestProcessingResult(
   db: Db,
   documentVersionId: string | null,

@@ -26,29 +26,34 @@ Bản chứng minh use-case và triển khai tham chiếu cho presales / solutio
 - Not a general-purpose Document AI SaaS / Không phải Document AI SaaS đa năng
 - Not a replacement for MISA, SAP, Coupa, Ironclad, Icertis, ABBYY, Rossum, Google Document AI, or Azure Document Intelligence
 
-## Features (Phase 1)
+## Features (Phase 1 / 1.5)
 
 - Same-origin React SPA + Hono API on a single Worker
 - Private R2 storage with versioned object keys
 - D1 relational schema (org-scoped, multi-tenant ready)
-- Queue consumer + Workflow skeleton (no fake AI extraction)
+- Queue consumer + durable Workflow (upload → extract → rules → human review)
+- Deterministic **Vietnamese invoice XML** field extraction (no invented AI values)
+- First Contract-to-Pay rules: arithmetic, duplicates, supplier match, XML core fields
 - Human review queue with immutable audit events
 - Internal ops UI: Dashboard, Documents, Cases, Review, Rules, Audit, Integrations
 - Product landing page at `/`
 - UI i18n: **Tiếng Việt** + **English**
+- GitHub Actions CI: typecheck · lint · test · build
 - Local seed data (synthetic fixtures only)
 
 ## Architecture
+
+![OrangeCloud DocOps architecture](docs/images/architecture.png)
 
 ```text
 Browser (React + i18n)
     │ same origin
     ▼
 Cloudflare Worker (Hono /api + SPA assets)
-    ├── D1   metadata, cases, reviews, audit
+    ├── D1   metadata, cases, reviews, audit, extracted fields, rules
     ├── R2   original document binaries (private)
     ├── Queue  metadata-only processing messages
-    └── Workflow  durable steps + waitForEvent(review)
+    └── Workflow  extract → validate → waitForEvent(review)
 ```
 
 More detail: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
@@ -97,6 +102,7 @@ Never enabled as a silent production fallback.
 | `npm run typecheck` | TypeScript check |
 | `npm run lint` | ESLint |
 | `npm test` | Unit + integration tests |
+| `npm run ci` | typecheck + lint + test + build |
 | `npm run cf-typegen` | Generate `worker-configuration.d.ts` |
 | `npm run db:migrate:local` | Apply D1 migrations locally |
 | `npm run db:seed:local` | Synthetic local fixtures only |
@@ -135,13 +141,12 @@ docs/         Setup + architecture
 - Queue messages contain identifiers/metadata only — never file bodies
 - Do not commit `.dev.vars`, API tokens, or Access secrets
 
-## Phase 2 (planned, not started)
+## Phase 2 (planned next)
 
-1. Versioned Vietnamese invoice XML parsing
-2. One Workers AI extraction baseline
-3. One external extraction-provider adapter
-4. Canonical field normalization
-5. First six deterministic Contract-to-Pay validation rules
+1. Workers AI extraction baseline for PDF contracts / POs
+2. One external extraction-provider adapter
+3. Richer field normalization + case amount ceiling / PO / payment-term rules
+4. Optional export webhook adapters (ERP / accounting) — thin, not a full ERP
 
 ## License
 

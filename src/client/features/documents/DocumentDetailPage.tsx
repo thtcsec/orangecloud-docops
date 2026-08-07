@@ -47,12 +47,23 @@ type Detail = {
     created_at: string;
     completed_at: string | null;
   }>;
-  extractedFields: Array<unknown>;
+  extractedFields: Array<{
+    id: string;
+    field_name: string;
+    raw_value: string | null;
+    normalized_value: string | null;
+    value_type: string | null;
+    confidence: number | null;
+    source_reference: string | null;
+    provider: string | null;
+  }>;
   ruleResults: Array<{
     id: string;
     rule_key: string;
     status: string;
     explanation: string | null;
+    expected_value?: string | null;
+    actual_value?: string | null;
   }>;
   reviewDecisions: Array<{
     id: string;
@@ -238,14 +249,44 @@ export function DocumentDetailPage() {
         <Panel>
           <PanelHeader
             title={t.documentDetail.extracted}
-            subtitle={t.documentDetail.extractedSub}
+            subtitle={
+              data.extractedFields.length > 0
+                ? t.documentDetail.extractedSubReady
+                : t.documentDetail.extractedSub
+            }
           />
           {data.extractedFields.length === 0 ? (
             <EmptyState
               title={t.documentDetail.extractionUnavailableTitle}
               description={t.documentDetail.extractionUnavailableBody}
             />
-          ) : null}
+          ) : (
+            <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+              {data.extractedFields.map((field) => (
+                <li key={field.id} className="px-4 py-3 text-sm">
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <span className="font-mono text-xs text-ink-500">
+                      {field.field_name}
+                    </span>
+                    {field.confidence != null ? (
+                      <span className="text-xs text-ink-500">
+                        {Math.round(field.confidence * 100)}%
+                      </span>
+                    ) : null}
+                  </div>
+                  <div className="mt-1 font-medium text-ink-900">
+                    {field.normalized_value || field.raw_value || t.common.none}
+                  </div>
+                  {field.source_reference ? (
+                    <div className="mt-0.5 text-xs text-ink-500">
+                      &lt;{field.source_reference}&gt;
+                      {field.provider ? ` · ${field.provider}` : ""}
+                    </div>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          )}
         </Panel>
         <Panel>
           <PanelHeader title={t.documentDetail.ruleResults} />

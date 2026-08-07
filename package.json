@@ -14,6 +14,7 @@
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
+    "ci": "npm run typecheck && npm run lint && npm test && npm run build",
     "cf-typegen": "wrangler types",
     "db:migrate:local": "wrangler d1 migrations apply DOCOPS_DB --local",
     "db:migrate:staging": "wrangler d1 migrations apply DOCOPS_DB --env staging --remote",

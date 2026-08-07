@@ -105,6 +105,20 @@ export function LandingPage() {
             </ol>
           </div>
         </section>
+
+        <section className="mx-auto max-w-5xl px-4 py-12">
+          <h2 className="text-sm font-semibold text-ink-950">
+            {t.landing.architectureTitle}
+          </h2>
+          <figure className="mt-4 overflow-hidden rounded-lg border border-slate-200/80 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
+            <img
+              src="/illustrations/architecture.png"
+              alt={t.landing.architectureAlt}
+              className="h-auto w-full animate-fade-in"
+              loading="lazy"
+            />
+          </figure>
+        </section>
       </main>
 
       <SiteFooter />

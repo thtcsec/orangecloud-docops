@@ -6,10 +6,16 @@ import {
 import { createId, nowIso } from "../utils/id";
 import { logger } from "../utils/logger";
 import {
+  clearExtractedFieldsForRun,
+  createExtractedField,
   getDocumentById,
   getVersion,
   updateProcessingRun,
 } from "../db/repositories/documents";
+import {
+  clearRuleResultsForDocument,
+  createRuleResult,
+} from "../db/repositories/cases";
 import { transitionDocumentStatus } from "../domain/documents/service";
 import { appendAuditEvent } from "../domain/audit/service";
 import {
@@ -17,10 +23,12 @@ import {
   createReviewTask,
 } from "../db/repositories/reviews";
 import {
-  NotConfiguredClassifier,
+  HeuristicClassifier,
   NotConfiguredConverter,
   NotConfiguredExtractor,
-  NotConfiguredVietnamInvoiceXmlParser,
+  PassthroughNormalizer,
+  VietnamInvoiceXmlParser,
+  evaluateDocumentRules,
 } from "../providers/interfaces";
 
 export type DocumentWorkflowParams = {
@@ -40,8 +48,9 @@ export type ReviewDecisionEvent = {
 };
 
 /**
- * Phase 1 document processing Workflow skeleton.
- * Does not fabricate AI extraction. Routes to human review when no provider is configured.
+ * Document processing Workflow.
+ * Phase 1.5: deterministic VN invoice XML parse + first C2P rules.
+ * Still routes to human review — never silently auto-approves.
  */
 export class DocumentProcessingWorkflow extends WorkflowEntrypoint<
   Env,
@@ -69,6 +78,7 @@ export class DocumentProcessingWorkflow extends WorkflowEntrypoint<
         documentId: document.id,
         organizationId: document.organization_id,
         status: document.status,
+        caseId: document.case_id,
         mimeType: version.mime_type,
         filename: version.original_filename,
         r2ObjectKey: version.r2_object_key,
@@ -88,7 +98,7 @@ export class DocumentProcessingWorkflow extends WorkflowEntrypoint<
     });
 
     const detected = await step.do("detect-file-type", async () => {
-      const classifier = new NotConfiguredClassifier();
+      const classifier = new HeuristicClassifier();
       return classifier.classify({
         mimeType: meta.mimeType,
         filename: meta.filename,
@@ -98,31 +108,126 @@ export class DocumentProcessingWorkflow extends WorkflowEntrypoint<
 
     const strategy = await step.do("select-processing-strategy", async () => {
       if (detected.documentType === "invoice_xml") {
-        return { strategy: "vietnam_invoice_xml_parser", provider: "none" };
+        return { strategy: "vietnam_invoice_xml_parser", provider: "vietnam-invoice-xml" };
       }
       return { strategy: "extraction_unavailable", provider: "none" };
     });
 
-    await step.do("create-processing-result", async () => {
-      const extractor = new NotConfiguredExtractor();
-      const xmlParser = new NotConfiguredVietnamInvoiceXmlParser();
+    const processing = await step.do("extract-normalize-validate", async () => {
       const converter = new NotConfiguredConverter();
-
-      const extraction =
-        strategy.strategy === "vietnam_invoice_xml_parser"
-          ? await xmlParser.parse({ r2ObjectKey: params.r2ObjectKey })
-          : await extractor.extract({
-              r2ObjectKey: params.r2ObjectKey,
-              mimeType: meta.mimeType,
-            });
       const conversion = await converter.convert({
         r2ObjectKey: params.r2ObjectKey,
         mimeType: meta.mimeType,
       });
 
+      let extraction =
+        strategy.strategy === "vietnam_invoice_xml_parser"
+          ? await (async () => {
+              const obj = await this.env.DOCUMENTS_BUCKET.get(params.r2ObjectKey);
+              if (!obj) {
+                return {
+                  configured: true,
+                  provider: "vietnam-invoice-xml",
+                  fields: [],
+                  message: "R2 object missing at parse time",
+                };
+              }
+              const xmlText = await obj.text();
+              return new VietnamInvoiceXmlParser().parse({ xmlText });
+            })()
+          : await new NotConfiguredExtractor().extract({
+              r2ObjectKey: params.r2ObjectKey,
+              mimeType: meta.mimeType,
+            });
+
+      const normalized = await new PassthroughNormalizer().normalize({
+        fields: extraction.fields,
+      });
+      extraction = { ...extraction, fields: normalized.fields };
+
+      await clearExtractedFieldsForRun(
+        this.env.DOCOPS_DB,
+        params.processingRunId,
+      );
+
+      const now = nowIso();
+      for (const field of extraction.fields) {
+        await createExtractedField(this.env.DOCOPS_DB, {
+          id: createId("xf"),
+          processing_run_id: params.processingRunId,
+          document_version_id: params.documentVersionId,
+          field_name: field.fieldName,
+          raw_value: field.rawValue,
+          normalized_value: field.normalizedValue,
+          value_type: field.valueType,
+          confidence: field.confidence,
+          source_kind: field.sourceKind,
+          source_reference: field.sourceReference ?? null,
+          provider: extraction.provider,
+          model_version: "v1",
+          created_at: now,
+        });
+      }
+
+      if (extraction.fields.length > 0) {
+        await transitionDocumentStatus(this.env.DOCOPS_DB, {
+          organizationId: params.organizationId,
+          documentId: params.documentId,
+          to: "EXTRACTED",
+          actorType: "system",
+          actorId: "workflow",
+          requestId: params.requestId,
+          metadata: {
+            processingRunId: params.processingRunId,
+            fieldCount: extraction.fields.length,
+          },
+        });
+
+        await transitionDocumentStatus(this.env.DOCOPS_DB, {
+          organizationId: params.organizationId,
+          documentId: params.documentId,
+          to: "VALIDATING",
+          actorType: "system",
+          actorId: "workflow",
+          requestId: params.requestId,
+          metadata: { processingRunId: params.processingRunId },
+        });
+      }
+
+      await clearRuleResultsForDocument(this.env.DOCOPS_DB, params.documentId);
+
+      const rules = await evaluateDocumentRules({
+        db: this.env.DOCOPS_DB,
+        organizationId: params.organizationId,
+        documentId: params.documentId,
+        caseId: meta.caseId,
+        fields: extraction.fields,
+      });
+
+      for (const result of rules.results) {
+        await createRuleResult(this.env.DOCOPS_DB, {
+          id: createId("rr"),
+          case_id: meta.caseId,
+          document_id: params.documentId,
+          rule_key: result.ruleKey,
+          rule_version: result.ruleVersion,
+          status: result.status,
+          severity: result.severity,
+          expected_value: result.expectedValue,
+          actual_value: result.actualValue,
+          explanation: result.explanation,
+          created_at: now,
+        });
+      }
+
+      const failCount = rules.results.filter((r) => r.status === "fail").length;
+      const warnCount = rules.results.filter(
+        (r) => r.status === "warning",
+      ).length;
+
       await updateProcessingRun(this.env.DOCOPS_DB, params.processingRunId, {
         provider: extraction.provider,
-        provider_model: null,
+        provider_model: strategy.provider,
         status: "waiting_review",
       });
 
@@ -130,7 +235,10 @@ export class DocumentProcessingWorkflow extends WorkflowEntrypoint<
         organizationId: params.organizationId,
         actorType: "system",
         actorId: "workflow",
-        action: "processing.extraction.unavailable",
+        action:
+          extraction.fields.length > 0
+            ? "processing.extraction.completed"
+            : "processing.extraction.unavailable",
         entityType: "processing_run",
         entityId: params.processingRunId,
         requestId: params.requestId,
@@ -140,12 +248,18 @@ export class DocumentProcessingWorkflow extends WorkflowEntrypoint<
           conversionConfigured: conversion.configured,
           message: extraction.message,
           detectedType: detected.documentType,
+          fieldCount: extraction.fields.length,
+          ruleFailCount: failCount,
+          ruleWarnCount: warnCount,
         },
       });
 
       return {
         extractionConfigured: extraction.configured,
+        fieldCount: extraction.fields.length,
         message: extraction.message,
+        failCount,
+        warnCount,
       };
     });
 
@@ -166,14 +280,26 @@ export class DocumentProcessingWorkflow extends WorkflowEntrypoint<
       );
       if (!task) {
         const now = nowIso();
+        const reasonParts = [
+          processing.fieldCount > 0
+            ? `Parsed ${processing.fieldCount} field(s).`
+            : "No structured fields extracted.",
+          processing.failCount > 0
+            ? `${processing.failCount} rule fail(s).`
+            : null,
+          processing.warnCount > 0
+            ? `${processing.warnCount} rule warning(s).`
+            : null,
+          "Human review required before approval.",
+        ].filter(Boolean);
+
         task = {
           id: createId("rev"),
           organization_id: params.organizationId,
           document_id: params.documentId,
-          case_id: null,
+          case_id: meta.caseId,
           status: "open",
-          reason:
-            "Extraction provider not configured in Phase 1. Human review required.",
+          reason: reasonParts.join(" "),
           assigned_to: null,
           created_at: now,
           updated_at: now,
@@ -283,6 +409,7 @@ export class DocumentProcessingWorkflow extends WorkflowEntrypoint<
       processingRunId: params.processingRunId,
       reviewTaskId,
       detectedType: detected.documentType,
+      fieldCount: processing.fieldCount,
     };
   }
 }

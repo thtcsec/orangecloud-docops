@@ -151,6 +151,16 @@ export async function listRuleResultsForDocument(
   );
 }
 
+export async function clearRuleResultsForDocument(
+  db: Db,
+  documentId: string,
+): Promise<void> {
+  await db
+    .prepare(`DELETE FROM rule_results WHERE document_id = ?`)
+    .bind(documentId)
+    .run();
+}
+
 export async function createRuleResult(
   db: Db,
   row: RuleResultRow,

@@ -38,7 +38,7 @@ describe("API validation and authorization", () => {
 
 describe("document lifecycle smoke", () => {
   it("uploads, queues processing foundations, creates review path, and audits decision", async () => {
-    const xml = `<?xml version="1.0"?><Invoice><Synthetic>true</Synthetic><Number>INV-SMOKE-1</Number></Invoice>`;
+    const xml = `<?xml version="1.0"?><Invoice><Synthetic>true</Synthetic><Number>INV-SMOKE-1</Number><SubTotal>1000000</SubTotal><TaxAmount>100000</TaxAmount><Total>1100000</Total><SellerTaxCode>0123456789</SellerTaxCode></Invoice>`;
     const form = new FormData();
     form.set(
       "file",

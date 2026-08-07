@@ -1,44 +1,37 @@
 /**
- * Phase 1 provider interfaces. Implementations are disabled / not configured.
- * Do not return fabricated extraction fields.
+ * Provider interfaces. Phase 1.5 enables deterministic VN invoice XML parsing
+ * and a first set of Contract-to-Pay rules. No fabricated AI extraction.
  */
 
-export type ClassificationResult = {
-  documentType: "vendor_contract" | "purchase_order" | "invoice_xml" | "invoice_pdf" | "unknown";
-  confidence: number;
-  provider: string;
-  configured: boolean;
-};
+export type {
+  ClassificationResult,
+  ConversionResult,
+  ExtractionResult,
+  NormalizationResult,
+  RuleEvaluationResult,
+  ExportResult,
+  ExtractedField,
+  EvaluatedRule,
+} from "./types";
 
-export type ConversionResult = {
-  configured: boolean;
-  artifactKey?: string;
-  message: string;
-};
+export {
+  VietnamInvoiceXmlParser,
+  parseVietnamInvoiceXmlText,
+} from "./vietnam-invoice-xml";
 
-export type ExtractionResult = {
-  configured: boolean;
-  provider: string;
-  fields: never[];
-  message: string;
-};
+export {
+  evaluateDocumentRules,
+  IMPLEMENTED_RULE_KEYS,
+} from "./rules";
 
-export type NormalizationResult = {
-  configured: boolean;
-  fields: never[];
-  message: string;
-};
-
-export type RuleEvaluationResult = {
-  configured: boolean;
-  results: never[];
-  message: string;
-};
-
-export type ExportResult = {
-  configured: boolean;
-  message: string;
-};
+import type {
+  ClassificationResult,
+  ConversionResult,
+  ExtractionResult,
+  NormalizationResult,
+  RuleEvaluationResult,
+  ExportResult,
+} from "./types";
 
 export interface DocumentClassifier {
   classify(input: {
@@ -49,30 +42,30 @@ export interface DocumentClassifier {
 }
 
 export interface DocumentConverter {
-  convert(input?: { r2ObjectKey: string; mimeType: string }): Promise<ConversionResult>;
+  convert(input?: {
+    r2ObjectKey: string;
+    mimeType: string;
+  }): Promise<ConversionResult>;
 }
 
 export interface DocumentExtractor {
-  extract(input?: { r2ObjectKey: string; mimeType: string }): Promise<ExtractionResult>;
-}
-
-export interface VietnamInvoiceXmlParser {
-  parse(input?: { r2ObjectKey: string }): Promise<ExtractionResult>;
+  extract(input?: {
+    r2ObjectKey: string;
+    mimeType: string;
+  }): Promise<ExtractionResult>;
 }
 
 export interface FieldNormalizer {
-  normalize(input: { fields: never[] }): Promise<NormalizationResult>;
-}
-
-export interface RuleEvaluator {
-  evaluate(input: { caseId?: string; documentId: string }): Promise<RuleEvaluationResult>;
+  normalize(input: {
+    fields: ExtractionResult["fields"];
+  }): Promise<NormalizationResult>;
 }
 
 export interface ExportAdapter {
   export(input: { caseId: string }): Promise<ExportResult>;
 }
 
-export class NotConfiguredClassifier implements DocumentClassifier {
+export class HeuristicClassifier implements DocumentClassifier {
   async classify(input: {
     mimeType: string;
     filename: string;
@@ -91,42 +84,66 @@ export class NotConfiguredClassifier implements DocumentClassifier {
     }
     return {
       documentType,
-      confidence: 0.2,
+      confidence: documentType === "invoice_xml" ? 0.85 : 0.35,
       provider: "heuristic-filename",
       configured: true,
     };
   }
 }
 
+/** @deprecated Use HeuristicClassifier */
+export class NotConfiguredClassifier extends HeuristicClassifier {}
+
 export class NotConfiguredExtractor implements DocumentExtractor {
-  async extract(_input?: { r2ObjectKey: string; mimeType: string }): Promise<ExtractionResult> {
+  async extract(_input?: {
+    r2ObjectKey: string;
+    mimeType: string;
+  }): Promise<ExtractionResult> {
     return {
       configured: false,
       provider: "none",
       fields: [],
-      message: "No extraction provider configured in Phase 1",
+      message:
+        "No unstructured extraction provider configured. Use invoice XML or Phase 2 Workers AI.",
     };
   }
 }
 
-export class NotConfiguredVietnamInvoiceXmlParser
-  implements VietnamInvoiceXmlParser
-{
+/** Kept for workflow strategy naming compatibility */
+export class NotConfiguredVietnamInvoiceXmlParser {
   async parse(_input?: { r2ObjectKey: string }): Promise<ExtractionResult> {
     return {
       configured: false,
       provider: "vietnam-invoice-xml",
       fields: [],
-      message: "Vietnamese invoice XML parsing is planned for Phase 2",
+      message: "Call VietnamInvoiceXmlParser with xmlText instead",
     };
   }
 }
 
 export class NotConfiguredConverter implements DocumentConverter {
-  async convert(_input?: { r2ObjectKey: string; mimeType: string }): Promise<ConversionResult> {
+  async convert(_input?: {
+    r2ObjectKey: string;
+    mimeType: string;
+  }): Promise<ConversionResult> {
     return {
       configured: false,
-      message: "Document conversion is not configured in Phase 1",
+      message: "Document conversion is not configured",
+    };
+  }
+}
+
+export class PassthroughNormalizer implements FieldNormalizer {
+  async normalize(input: {
+    fields: ExtractionResult["fields"];
+  }): Promise<NormalizationResult> {
+    return {
+      configured: true,
+      fields: input.fields.map((f) => ({
+        ...f,
+        normalizedValue: f.normalizedValue ?? f.rawValue,
+      })),
+      message: "Passthrough normalization",
     };
   }
 }
@@ -136,17 +153,17 @@ export class NotConfiguredNormalizer implements FieldNormalizer {
     return {
       configured: false,
       fields: [],
-      message: "Field normalization is planned for Phase 2",
+      message: "Field normalization not configured",
     };
   }
 }
 
-export class NotConfiguredRuleEvaluator implements RuleEvaluator {
+export class NotConfiguredRuleEvaluator {
   async evaluate(): Promise<RuleEvaluationResult> {
     return {
       configured: false,
       results: [],
-      message: "Deterministic rule evaluation begins in Phase 2",
+      message: "Use evaluateDocumentRules()",
     };
   }
 }
@@ -155,7 +172,7 @@ export class NotConfiguredExportAdapter implements ExportAdapter {
   async export(): Promise<ExportResult> {
     return {
       configured: false,
-      message: "Export adapters are not configured in Phase 1",
+      message: "Export adapters are not configured",
     };
   }
 }
