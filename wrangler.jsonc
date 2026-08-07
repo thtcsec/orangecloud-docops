@@ -12,14 +12,14 @@
     "enabled": true,
     "head_sampling_rate": 1
   },
-  // Local / default bindings. Replace placeholder IDs after creating resources.
-  // Local D1 uses preview_database_id / --local; remote IDs are for staging/production.
   "vars": {
     "ENVIRONMENT": "local",
     "APP_BASE_URL": "http://localhost:5173",
     "LOCAL_DEV_AUTH_ENABLED": "true",
     "MAX_UPLOAD_BYTES": "10485760",
-    "PROCESSING_VERSION": "v1"
+    "PROCESSING_VERSION": "v1",
+    "UPLOAD_RATE_LIMIT": "30",
+    "API_RATE_LIMIT": "120"
   },
   "d1_databases": [
     {
@@ -60,8 +60,18 @@
       "class_name": "DocumentProcessingWorkflow"
     }
   ],
-  // AI is declared for staging/production Phase 2 readiness.
-  // Omit from local default config to avoid remote AI proxy during vitest/dev.
+  "ratelimits": [
+    {
+      "name": "UPLOAD_RATE_LIMITER",
+      "namespace_id": "1001",
+      "simple": { "limit": 30, "period": 60 }
+    },
+    {
+      "name": "API_RATE_LIMITER",
+      "namespace_id": "1002",
+      "simple": { "limit": 120, "period": 60 }
+    }
+  ],
   "workers_dev": true,
   "env": {
     "staging": {
@@ -78,14 +88,15 @@
         "APP_BASE_URL": "https://docops-stg.orangecloud.vn",
         "LOCAL_DEV_AUTH_ENABLED": "false",
         "MAX_UPLOAD_BYTES": "26214400",
-        "PROCESSING_VERSION": "v1"
+        "PROCESSING_VERSION": "v1",
+        "UPLOAD_RATE_LIMIT": "30",
+        "API_RATE_LIMIT": "120"
       },
       "d1_databases": [
         {
           "binding": "DOCOPS_DB",
           "database_name": "orangecloud-docops-stg",
-          // Replace after: npx wrangler d1 create orangecloud-docops-stg
-          "database_id": "REPLACE_WITH_STAGING_D1_DATABASE_ID",
+          "database_id": "62142462-5a04-436c-bde4-ae217c7296ba",
           "migrations_dir": "src/worker/db/migrations"
         }
       ],
@@ -120,6 +131,18 @@
           "class_name": "DocumentProcessingWorkflow"
         }
       ],
+      "ratelimits": [
+        {
+          "name": "UPLOAD_RATE_LIMITER",
+          "namespace_id": "2001",
+          "simple": { "limit": 30, "period": 60 }
+        },
+        {
+          "name": "API_RATE_LIMITER",
+          "namespace_id": "2002",
+          "simple": { "limit": 120, "period": 60 }
+        }
+      ],
       "ai": {
         "binding": "AI"
       }
@@ -138,14 +161,15 @@
         "APP_BASE_URL": "https://docops.orangecloud.vn",
         "LOCAL_DEV_AUTH_ENABLED": "false",
         "MAX_UPLOAD_BYTES": "52428800",
-        "PROCESSING_VERSION": "v1"
+        "PROCESSING_VERSION": "v1",
+        "UPLOAD_RATE_LIMIT": "20",
+        "API_RATE_LIMIT": "90"
       },
       "d1_databases": [
         {
           "binding": "DOCOPS_DB",
           "database_name": "orangecloud-docops-prod",
-          // Replace after: npx wrangler d1 create orangecloud-docops-prod
-          "database_id": "REPLACE_WITH_PRODUCTION_D1_DATABASE_ID",
+          "database_id": "6fe291d1-7f8f-4881-b49b-c9e85523ccf1",
           "migrations_dir": "src/worker/db/migrations"
         }
       ],
@@ -178,6 +202,18 @@
           "binding": "DOCUMENT_WORKFLOW",
           "name": "orangecloud-docops-document-workflow-prod",
           "class_name": "DocumentProcessingWorkflow"
+        }
+      ],
+      "ratelimits": [
+        {
+          "name": "UPLOAD_RATE_LIMITER",
+          "namespace_id": "3001",
+          "simple": { "limit": 20, "period": 60 }
+        },
+        {
+          "name": "API_RATE_LIMITER",
+          "namespace_id": "3002",
+          "simple": { "limit": 90, "period": 60 }
         }
       ],
       "ai": {

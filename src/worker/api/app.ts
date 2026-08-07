@@ -1,6 +1,8 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { requestContext, type AppVariables } from "./middleware/context";
+import { securityHeaders } from "./middleware/security-headers";
+import { apiRateLimit } from "./middleware/rate-limit";
 import { healthRoutes } from "./routes/health";
 import { sessionRoutes } from "./routes/session";
 import { dashboardRoutes } from "./routes/dashboard";
@@ -17,15 +19,24 @@ export function createApp() {
   const app = new Hono<{ Bindings: Env; Variables: AppVariables }>();
 
   app.use("*", requestContext);
+  app.use("*", securityHeaders);
   app.use(
     "/api/*",
     cors({
-      origin: (origin) => origin,
+      origin: (origin, c) => {
+        if (!origin) return origin;
+        if (c.env.ENVIRONMENT === "local") return origin;
+        const allowed = c.env.APP_BASE_URL.replace(/\/$/, "");
+        return origin === allowed ? origin : "";
+      },
       credentials: true,
+      allowHeaders: ["Content-Type", "Authorization", "Cf-Access-Jwt-Assertion"],
+      allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     }),
   );
 
   const api = new Hono<{ Bindings: Env; Variables: AppVariables }>();
+  api.use("*", apiRateLimit);
   api.route("/", healthRoutes);
   api.route("/", sessionRoutes);
   api.route("/", dashboardRoutes);

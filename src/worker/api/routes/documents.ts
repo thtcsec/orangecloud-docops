@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import type { AppVariables } from "../middleware/context";
 import { requireAuth, requireRoles } from "../middleware/auth";
+import { uploadRateLimit } from "../middleware/rate-limit";
 import { fail, ok } from "../response";
 import { documentsQuerySchema } from "../schemas/common";
 import { uploadDocument } from "../../services/upload";
@@ -84,6 +85,7 @@ documentRoutes.post(
   "/documents",
   requireAuth,
   requireRoles("admin", "reviewer"),
+  uploadRateLimit,
   async (c) => {
     const principal = c.get("principal")!;
     if (!canUpload(principal.role)) {

@@ -82,7 +82,11 @@ export async function resolvePrincipal(
   }
 
   if (!env.CF_ACCESS_AUD || !env.CF_ACCESS_TEAM_DOMAIN) {
-    logger.error("access_not_configured");
+    logger.error("access_not_configured", {
+      environment: env.ENVIRONMENT,
+      message:
+        "CF_ACCESS_AUD / CF_ACCESS_TEAM_DOMAIN secrets missing — refusing auth",
+    });
     return null;
   }
 

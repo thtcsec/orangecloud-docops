@@ -45,7 +45,6 @@ const FIELD_TAGS: Record<
       "VendorName",
       "SupplierName",
       "Seller",
-      "Ten",
     ],
     valueType: "string",
   },
@@ -166,25 +165,16 @@ export function parseVietnamInvoiceXmlText(xml: string): ExtractionResult {
       normalized = normalizeDate(hit.value);
     }
 
-    // Avoid grabbing the wrong nested "Ten" from deep structures with low confidence.
-    const confidence =
-      fieldName === "vendor_name" && hit.tag.toLowerCase() === "ten"
-        ? 0.55
-        : 0.9;
-
     fields.push({
       fieldName,
       rawValue: hit.value,
       normalizedValue: normalized,
       valueType: spec.valueType,
-      confidence,
+      confidence: 0.9,
       sourceKind: "xml",
       sourceReference: hit.tag,
     });
   }
-
-  // Prefer the most specific vendor_name if multiple Ten hits polluted — keep first only (already).
-
   return {
     configured: true,
     provider: "vietnam-invoice-xml",

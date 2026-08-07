@@ -1,5 +1,6 @@
 import type { ProcessingQueueMessage } from "@shared/queue";
 import { createApp } from "./api/app";
+import { withSecurityHeaders } from "./api/middleware/security-headers";
 import { handleQueueBatch } from "./queue/consumer";
 import { DocumentProcessingWorkflow } from "./workflows/document-processing";
 import { logger } from "./utils/logger";
@@ -14,8 +15,8 @@ export default {
     if (url.pathname.startsWith("/api/")) {
       return app.fetch(request, env, ctx);
     }
-    // SPA assets / client routes handled by assets binding + not_found_handling.
-    return env.ASSETS.fetch(request);
+    const assetResponse = await env.ASSETS.fetch(request);
+    return withSecurityHeaders(assetResponse, env.ENVIRONMENT);
   },
 
   async queue(
