@@ -161,10 +161,31 @@ function readCookie(request: Request, name: string): string | null {
     const [k, ...rest] = part.trim().split("=");
     if (k === name) {
       const value = rest.join("=").trim();
-      return value ? decodeURIComponent(value) : null;
+      if (!value) return null;
+      try {
+        return decodeURIComponent(value);
+      } catch {
+        return value;
+      }
     }
   }
   return null;
+}
+
+function base64UrlToBytes(input: string): Uint8Array {
+  const padded = input.replace(/-/g, "+").replace(/_/g, "/");
+  const pad =
+    padded.length % 4 === 0 ? "" : "=".repeat(4 - (padded.length % 4));
+  const binary = atob(padded + pad);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
+}
+
+function base64UrlToJson<T>(input: string): T {
+  return JSON.parse(new TextDecoder().decode(base64UrlToBytes(input))) as T;
 }
 
 async function verifyAccessJwt(
@@ -188,21 +209,23 @@ async function verifyAccessJwt(
       return null;
     }
     const certs = (await certsResp.json()) as {
-      keys: JsonWebKey[];
+      keys: Array<JsonWebKey & { kid?: string }>;
     };
 
-    const [, payloadB64] = token.split(".");
-    if (!payloadB64) return null;
-    const payloadJson = JSON.parse(
-      atob(payloadB64.replace(/-/g, "+").replace(/_/g, "/")),
-    ) as {
+    const [headerB64, payloadB64, signatureB64] = token.split(".");
+    if (!headerB64 || !payloadB64 || !signatureB64) {
+      logger.warn("access_jwt_malformed");
+      return null;
+    }
+
+    const payloadJson = base64UrlToJson<{
       aud?: string | string[];
       iss?: string;
       email?: string;
       common_name?: string;
       name?: string;
       exp?: number;
-    };
+    }>(payloadB64);
 
     const audOk = Array.isArray(payloadJson.aud)
       ? payloadJson.aud.includes(aud)
@@ -221,39 +244,48 @@ async function verifyAccessJwt(
       });
       return null;
     }
-    if (payloadJson.exp && payloadJson.exp * 1000 < Date.now()) return null;
+    if (payloadJson.exp && payloadJson.exp * 1000 < Date.now()) {
+      logger.warn("access_jwt_expired");
+      return null;
+    }
 
-    // Validate signature against published JWKS.
-    const header = JSON.parse(
-      atob(token.split(".")[0]!.replace(/-/g, "+").replace(/_/g, "/")),
-    ) as { kid?: string; alg?: string };
-    const jwk = certs.keys.find((k) => (k as { kid?: string }).kid === header.kid);
-    if (!jwk) return null;
+    const header = base64UrlToJson<{ kid?: string; alg?: string }>(headerB64);
+    const jwk = certs.keys.find((k) => k.kid === header.kid);
+    if (!jwk) {
+      logger.warn("access_jwk_kid_missing", { kid: header.kid });
+      return null;
+    }
 
     const key = await crypto.subtle.importKey(
       "jwk",
-      jwk,
+      {
+        kty: jwk.kty,
+        n: jwk.n,
+        e: jwk.e,
+        alg: "RS256",
+      },
       { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
       false,
       ["verify"],
     );
-    const [h, p, s] = token.split(".");
-    if (!h || !p || !s) return null;
-    const data = new TextEncoder().encode(`${h}.${p}`);
-    const signature = Uint8Array.from(
-      atob(s.replace(/-/g, "+").replace(/_/g, "/")),
-      (c) => c.charCodeAt(0),
-    );
+    const data = new TextEncoder().encode(`${headerB64}.${payloadB64}`);
+    const signature = base64UrlToBytes(signatureB64);
     const valid = await crypto.subtle.verify(
       "RSASSA-PKCS1-v1_5",
       key,
       signature,
       data,
     );
-    if (!valid) return null;
+    if (!valid) {
+      logger.warn("access_jwt_signature_invalid");
+      return null;
+    }
 
     const email = payloadJson.email || payloadJson.common_name;
-    if (!email) return null;
+    if (!email) {
+      logger.warn("access_jwt_email_missing");
+      return null;
+    }
     return { email, name: payloadJson.name };
   } catch (err) {
     logger.error("access_jwt_verify_failed", {
