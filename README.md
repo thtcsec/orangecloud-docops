@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="public/brand/logo-light.svg" alt="OrangeCloud DocOps" width="420" />
+</p>
+
 # OrangeCloud DocOps
 
 Cloudflare-based **Contract-to-Pay** document workflow accelerator for Legal, Procurement, and Accounting.
@@ -10,6 +14,7 @@ Bộ tăng tốc quy trình chứng từ **Contract-to-Pay** trên Cloudflare ch
 | **Staging** | `https://docops-stg.orangecloud.vn` |
 | **Package** | `orangecloud-docops` |
 | **Phase** | 1 — foundation (ingestion, review, audit, UI) |
+| **License** | Proprietary — reference / demo use |
 
 ## What this is / Đây là gì
 
@@ -150,8 +155,23 @@ docs/         Setup + architecture
 
 ## License
 
-Proprietary — OrangeCloud. Source is published for transparency and solution engineering reference; contact OrangeCloud before production reuse outside authorized engagements.
+See [LICENSE](LICENSE). Source is published for transparency and OrangeCloud solution engineering reference; contact OrangeCloud before production reuse outside authorized engagements.
+
+## Learn from (related patterns)
+
+Not clones of this product — useful Cloudflare / edge patterns to study:
+
+| Repo | Why look |
+|------|----------|
+| [cloudflare/workers-sdk](https://github.com/cloudflare/workers-sdk) | Official Wrangler, templates, Workers tooling |
+| [honojs/hono](https://github.com/honojs/hono) | API style used here (middleware, routing) |
+| [cloudflare/templates](https://github.com/cloudflare/templates) | Vite + Workers, D1, R2 starter shapes |
+| [supermemoryai/cloudflare-saas-stack](https://github.com/supermemoryai/cloudflare-saas-stack) | Full Cloudflare SaaS wiring (D1/R2/auth ideas) |
+| [ifindev/fullstack-next-cloudflare](https://github.com/ifindev/fullstack-next-cloudflare) | CI/CD + D1/R2 production workflow examples |
+
+Docs first: [Workers](https://developers.cloudflare.com/workers/), [D1](https://developers.cloudflare.com/d1/), [R2](https://developers.cloudflare.com/r2/), [Queues](https://developers.cloudflare.com/queues/), [Workflows](https://developers.cloudflare.com/workflows/), [Access](https://developers.cloudflare.com/cloudflare-one/access-controls/).
 
 ## Maintainer
 
 OrangeCloud · Cloudflare solution practice
+Trịnh Hoàng Tú
