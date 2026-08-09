@@ -5,7 +5,6 @@ import {
   PageHeader,
   Panel,
   QueryErrorState,
-  StatusBadge,
 } from "../../components/ui";
 import { useI18n } from "../../i18n";
 
@@ -18,7 +17,6 @@ type IntegrationsResponse = {
     connected: boolean;
     configurable: boolean;
   }>;
-  note: string;
 };
 
 export function IntegrationsPage() {
@@ -40,27 +38,43 @@ export function IntegrationsPage() {
     );
   }
 
+  const catalog = t.integrations.catalog;
+
   return (
     <div>
       <PageHeader
         title={t.integrations.title}
-        description={query.data!.note}
+        description={t.integrations.description}
       />
+
+      <Panel className="mb-4 px-4 py-3 text-sm text-ink-500">
+        {t.integrations.roadmapNote}
+      </Panel>
+
       <div className="grid gap-3 md:grid-cols-2">
-        {query.data!.integrations.map((item) => (
-          <Panel key={item.key} className="p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h2 className="font-semibold text-ink-900">{item.name}</h2>
-                <p className="mt-1 text-sm text-ink-500">{item.description}</p>
+        {query.data!.integrations.map((item) => {
+          const copy = catalog[item.key as keyof typeof catalog];
+          return (
+            <Panel key={item.key} className="p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="font-semibold text-ink-900">
+                    {copy?.name || item.name}
+                  </h2>
+                  <p className="mt-1 text-sm leading-relaxed text-ink-500">
+                    {copy?.description || item.description}
+                  </p>
+                </div>
+                <span className="shrink-0 rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-ink-600 dark:bg-slate-800 dark:text-slate-300">
+                  {t.integrations.planned}
+                </span>
               </div>
-              <StatusBadge status={t.common.unavailable} />
-            </div>
-            <p className="mt-3 text-xs text-ink-500">
-              {t.integrations.notConnected}
-            </p>
-          </Panel>
-        ))}
+              <p className="mt-3 text-xs text-ink-500">
+                {t.integrations.availability}
+              </p>
+            </Panel>
+          );
+        })}
       </div>
     </div>
   );

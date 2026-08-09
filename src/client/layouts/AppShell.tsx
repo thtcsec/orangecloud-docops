@@ -8,6 +8,7 @@ import {
   LanguageToggle,
   ThemeToggle,
 } from "../components/HeaderControls";
+import { UserMenu } from "../components/UserMenu";
 import { SiteFooter } from "../components/SiteFooter";
 import { QueryErrorState } from "../components/ui";
 import { useI18n } from "../i18n";
@@ -52,30 +53,21 @@ export function AppShell() {
           <div className="flex items-center gap-3">
             <LanguageToggle />
             <ThemeToggle />
-            <div className="text-right text-sm text-ink-500">
-              {session.data ? (
-                <>
-                  <div className="font-medium text-ink-800">
-                    {session.data.user.displayName}
-                  </div>
-                  <div>
-                    {session.data.user.email} · {session.data.user.role}
-                  </div>
-                </>
-              ) : session.isError ? (
-                <div className="text-red-700 dark:text-red-400">
-                  {t.session.notAuthenticated}
-                </div>
-              ) : (
-                <div className="inline-flex items-center gap-2">
-                  <span
-                    className="inline-block size-3 animate-spin rounded-full border-2 border-slate-300 border-t-accent-500"
-                    aria-hidden
-                  />
-                  {t.session.resolving}
-                </div>
-              )}
-            </div>
+            {session.data ? (
+              <UserMenu user={session.data.user} />
+            ) : session.isError ? (
+              <div className="text-sm text-red-700 dark:text-red-400">
+                {t.session.notAuthenticated}
+              </div>
+            ) : (
+              <div className="inline-flex items-center gap-2 text-sm text-ink-500">
+                <span
+                  className="inline-block size-3 animate-spin rounded-full border-2 border-slate-300 border-t-accent-500"
+                  aria-hidden
+                />
+                {t.session.resolving}
+              </div>
+            )}
           </div>
         </div>
         <nav

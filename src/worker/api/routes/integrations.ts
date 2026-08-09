@@ -16,6 +16,5 @@ integrationRoutes.get("/integrations", requireAuth, (c) => {
       connected: false,
       configurable: false,
     })),
-    note: "Integrations are catalogue-only in Phase 1. No providers are simulated as connected.",
   });
 });

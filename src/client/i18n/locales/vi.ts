@@ -140,30 +140,49 @@ export const vi: TranslationSchema = {
     ],
   },
   dashboard: {
-    title: "Hôm nay đang chạy gì",
+    title: "Tổng quan",
     description:
-      "Nhịp nhanh về chứng từ, rà soát và hồ sơ mở — chỉ số thật, không chart giả.",
-    heroAlt:
-      "Minh họa: hợp đồng, PO và hoá đơn gặp nhau trên một mạch cloud riêng tư",
-    heroCaption: "Hợp đồng → PO → hoá đơn. Cùng một mạch. Có người khi cần.",
+      "Khối lượng chứng từ, trạng thái xử lý, hồ sơ đang mở và hoạt động gần đây.",
     upload: "Tải chứng từ",
     totalDocuments: "Chứng từ",
-    processing: "Đang làm",
-    needsReview: "Chờ người xem",
-    failed: "Kẹt / lỗi",
-    openCases: "Hồ sơ C2P đang mở",
-    recentAudit: "Dấu vết gần đây",
-    recentAuditSub: "Chỉ ghi thêm. Không sửa lén.",
-    emptyTitle: "Ở đây đang yên",
+    processing: "Đang xử lý",
+    needsReview: "Cần rà soát",
+    failed: "Lỗi",
+    openCases: "Hồ sơ đang mở",
+    recentAudit: "Hoạt động gần đây",
+    recentAuditSub: "Các thao tác đã ghi nhận trong tổ chức này.",
+    emptyTitle: "Chưa có chứng từ",
     emptyBody:
-      "Chưa có gì được tải. Thả PDF hoặc XML hoá đơn vào, các con số mới bắt đầu có nghĩa.",
-    goUpload: "Tải gì đó lên",
-    noAuditTitle: "Chưa có dấu vết",
-    noAuditBody: "Chứng từ bắt đầu chạy là ghi chú sẽ hiện.",
+      "Tải PDF hoặc XML hoá đơn để bắt đầu xử lý và hiển thị các chỉ số.",
+    goUpload: "Tải chứng từ",
+    noAuditTitle: "Chưa có hoạt động",
+    noAuditBody:
+      "Hoạt động sẽ xuất hiện sau khi chứng từ được xử lý hoặc rà soát.",
+  },
+  roles: {
+    profileTitle: "Tài khoản",
+    roleLabel: "Vai trò",
+    signInLabel: "Đăng nhập qua",
+    authAccess: "Cloudflare Access",
+    authLocal: "Môi trường local",
+    manageHint:
+      "Admin tổ chức quản lý vai trò. Người dùng Access mới mặc định là Viewer, trừ khi được gán bootstrap admin.",
+    labels: {
+      admin: "Admin",
+      reviewer: "Reviewer",
+      viewer: "Viewer",
+    },
+    summaries: {
+      admin:
+        "Toàn quyền: tải lên, rà soát, quản lý hồ sơ và xem nhật ký kiểm toán.",
+      reviewer:
+        "Được tải lên, rà soát và cập nhật hồ sơ. Không xem nhật ký kiểm toán.",
+      viewer: "Chỉ xem chứng từ, hồ sơ, quy tắc và tổng quan.",
+    },
   },
   documents: {
     title: "Chứng từ",
-    description: "Bản gốc, các phiên bản, và chỗ nó đang đứng trong pipeline.",
+    description: "Bản gốc, phiên bản và trạng thái xử lý hiện tại.",
     searchPlaceholder: "Tên file hoặc ID",
     type: "Loại",
     allTypes: "Mọi loại",
@@ -176,25 +195,25 @@ export const vi: TranslationSchema = {
     uploaded: "Tải lúc",
     processing: "Xử lý",
     case: "Hồ sơ",
-    emptyTitle: "Không khớp gì",
-    emptyBody: "Nới filter ra, hoặc tải PDF/XML để bảng này có việc.",
+    emptyTitle: "Không có chứng từ khớp",
+    emptyBody: "Điều chỉnh bộ lọc, hoặc tải PDF/XML để bắt đầu.",
     uploadTitle: "Tải chứng từ",
     uploadDescription:
-      "Tạm thời PDF hoặc XML. Giữ bản gốc riêng tư trên R2, không đè phiên bản cũ.",
+      "Hỗ trợ PDF hoặc XML. Bản gốc lưu riêng tư trên R2; không ghi đè phiên bản cũ.",
     drop: "Thả PDF hoặc XML vào đây",
-    maxSizeHint: "Giới hạn nằm ở MAX_UPLOAD_BYTES.",
+    maxSizeHint: "Giới hạn dung lượng theo cấu hình triển khai.",
     selected: "Đã chọn",
     documentType: "Loại chứng từ (tuỳ chọn)",
-    autoUnknown: "Đoán sau / chưa rõ",
+    autoUnknown: "Tự nhận / chưa rõ",
     caseId: "ID hồ sơ (tuỳ chọn)",
-    caseIdHint: "Nếu đã có hồ sơ",
+    caseIdHint: "Gắn với hồ sơ có sẵn nếu đã có",
     uploading: "Đang tải",
     submit: "Tải lên",
     chooseFile: "Chọn file PDF hoặc XML.",
     duplicateWarn:
-      "Nội dung này mình đã thấy rồi (cùng SHA-256). Vẫn lưu phiên bản mới để dấu vết trung thực.",
+      "Nội dung trùng SHA-256 với bản đã có. Vẫn lưu phiên bản mới để giữ dấu vết.",
     existingDocument: "Bản trước",
-    uploadAccepted: "Nhận rồi.",
+    uploadAccepted: "Đã nhận tệp.",
     openDocument: "Mở chứng từ",
   },
   documentDetail: {
@@ -308,6 +327,38 @@ export const vi: TranslationSchema = {
   },
   integrations: {
     title: "Tích hợp",
-    notConnected: "Chưa nối · Phase 1 cố ý để tắt",
+    description:
+      "Kết nối dự kiến cho trích xuất và xuất dữ liệu. Bản hiện tại chưa nối nhà cung cấp nào.",
+    roadmapNote:
+      "Trang này là danh mục lộ trình để đội dự án nắm các bước tiếp theo. Giao diện kết nối sẽ có ở bản sau.",
+    planned: "Dự kiến",
+    availability: "Chưa khả dụng trong bản hiện tại.",
+    catalog: {
+      workers_ai: {
+        name: "Workers AI",
+        description:
+          "Trích xuất trường từ PDF hợp đồng và đơn hàng chưa có cấu trúc.",
+      },
+      azure_document_intelligence: {
+        name: "Azure Document Intelligence",
+        description: "Nhà cung cấp trích xuất bên ngoài (tuỳ chọn).",
+      },
+      google_document_ai: {
+        name: "Google Document AI",
+        description: "Nhà cung cấp trích xuất bên ngoài (tuỳ chọn).",
+      },
+      erp_webhook: {
+        name: "ERP webhook",
+        description: "Đẩy kết quả đã duyệt vào ERP hiện có.",
+      },
+      misa_accounting: {
+        name: "MISA / kế toán",
+        description: "Adapter xuất dữ liệu cho hệ thống kế toán Việt Nam.",
+      },
+      clm_integration: {
+        name: "CLM",
+        description: "Kết nối hệ thống quản lý vòng đời hợp đồng.",
+      },
+    },
   },
 };

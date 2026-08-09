@@ -138,31 +138,48 @@ export const en = {
     ],
   },
   dashboard: {
-    title: "What’s moving today",
+    title: "Overview",
     description:
-      "A quick pulse on documents, reviews, and open cases — only from real records, never fake charts.",
-    heroAlt:
-      "Illustration: contracts, purchase orders, and invoices meeting in a private cloud trail",
-    heroCaption: "Contract → PO → invoice. Same trail. Human when it matters.",
-    upload: "Upload a document",
+      "Document volume, processing status, open cases, and recent activity.",
+    upload: "Upload document",
     totalDocuments: "Documents",
-    processing: "In the works",
-    needsReview: "Waiting on a human",
-    failed: "Stuck / failed",
-    openCases: "Open C2P cases",
-    recentAudit: "Recent trail",
-    recentAuditSub: "Append-only. No quiet edits.",
-    emptyTitle: "Quiet in here",
+    processing: "Processing",
+    needsReview: "Needs review",
+    failed: "Failed",
+    openCases: "Open cases",
+    recentAudit: "Recent activity",
+    recentAuditSub: "Latest audited actions in this organization.",
+    emptyTitle: "No documents yet",
     emptyBody:
-      "Nothing uploaded yet. Drop in a PDF or invoice XML and the counters will start meaning something.",
-    goUpload: "Upload something",
-    noAuditTitle: "No trail yet",
-    noAuditBody: "As soon as documents move, notes will show up here.",
+      "Upload a PDF or invoice XML to start processing and populate these metrics.",
+    goUpload: "Upload document",
+    noAuditTitle: "No activity yet",
+    noAuditBody: "Activity appears here after documents are processed or reviewed.",
+  },
+  roles: {
+    profileTitle: "Account",
+    roleLabel: "Role",
+    signInLabel: "Signed in with",
+    authAccess: "Cloudflare Access",
+    authLocal: "Local development",
+    manageHint:
+      "Organization admins control roles. New Access users start as Viewer unless they are listed as a bootstrap admin.",
+    labels: {
+      admin: "Admin",
+      reviewer: "Reviewer",
+      viewer: "Viewer",
+    },
+    summaries: {
+      admin:
+        "Full access: upload, review, manage cases, and view audit logs.",
+      reviewer:
+        "Can upload documents, process reviews, and update cases. No audit access.",
+      viewer: "Read-only access to documents, cases, rules, and dashboards.",
+    },
   },
   documents: {
     title: "Documents",
-    description:
-      "The originals, their versions, and where each one sits in the pipeline.",
+    description: "Originals, versions, and current pipeline status.",
     searchPlaceholder: "Filename or document ID",
     type: "Type",
     allTypes: "All types",
@@ -175,18 +192,18 @@ export const en = {
     uploaded: "Uploaded",
     processing: "Processing",
     case: "Case",
-    emptyTitle: "Nothing matches",
-    emptyBody: "Loosen the filters, or upload a PDF/XML to give this table a life.",
-    uploadTitle: "Upload a document",
+    emptyTitle: "No matching documents",
+    emptyBody: "Adjust filters, or upload a PDF/XML to get started.",
+    uploadTitle: "Upload document",
     uploadDescription:
-      "PDF or XML for now. We keep the original private in R2 and never overwrite a previous version.",
+      "PDF or XML. Originals are stored privately in R2; versions are never overwritten.",
     drop: "Drop a PDF or XML here",
-    maxSizeHint: "Size limit comes from MAX_UPLOAD_BYTES.",
+    maxSizeHint: "Maximum size is set by the deployment upload limit.",
     selected: "Selected",
     documentType: "Document type (optional)",
-    autoUnknown: "Guess later / unknown",
+    autoUnknown: "Auto-detect / unknown",
     caseId: "Case ID (optional)",
-    caseIdHint: "If you already have a case",
+    caseIdHint: "Link to an existing case if you have one",
     uploading: "Uploading",
     submit: "Upload",
     chooseFile: "Pick a PDF or XML file.",
@@ -307,7 +324,39 @@ export const en = {
   },
   integrations: {
     title: "Integrations",
-    notConnected: "Not connected · Phase 1 leaves these off on purpose",
+    description:
+      "Planned connectors for extraction and export. None are connected in this release.",
+    roadmapNote:
+      "This page is a roadmap catalogue so stakeholders can see what comes next. Connection UI ships in a later release.",
+    planned: "Planned",
+    availability: "Not available in the current release.",
+    catalog: {
+      workers_ai: {
+        name: "Workers AI",
+        description:
+          "Extract fields from unstructured PDF contracts and purchase orders.",
+      },
+      azure_document_intelligence: {
+        name: "Azure Document Intelligence",
+        description: "Optional external extraction provider.",
+      },
+      google_document_ai: {
+        name: "Google Document AI",
+        description: "Optional external extraction provider.",
+      },
+      erp_webhook: {
+        name: "ERP webhook",
+        description: "Push approved results into an existing ERP.",
+      },
+      misa_accounting: {
+        name: "MISA / accounting",
+        description: "Export adapters for Vietnamese accounting systems.",
+      },
+      clm_integration: {
+        name: "CLM",
+        description: "Connect contract lifecycle management systems.",
+      },
+    },
   },
 };
 
