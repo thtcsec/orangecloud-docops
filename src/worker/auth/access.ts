@@ -97,13 +97,36 @@ export async function resolvePrincipal(
 
   let user = await findUserByEmail(db, org.id, identity.email);
   if (!user) {
-    // First-seen Access users default to viewer until an admin elevates them.
+    const bootstrap = (env.BOOTSTRAP_ADMIN_EMAILS || "")
+      .split(",")
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean);
+    const role: UserRole = bootstrap.includes(identity.email.toLowerCase())
+      ? "admin"
+      : "viewer";
     user = await upsertLocalUser(db, {
       id: createId("usr"),
       organizationId: org.id,
       email: identity.email,
       displayName: identity.name || identity.email,
-      role: "viewer",
+      role,
+      now,
+    });
+  } else if (
+    user.role === "viewer" &&
+    (env.BOOTSTRAP_ADMIN_EMAILS || "")
+      .split(",")
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean)
+      .includes(identity.email.toLowerCase())
+  ) {
+    // Elevate pre-seeded / first-login viewer listed as bootstrap admin.
+    user = await upsertLocalUser(db, {
+      id: user.id,
+      organizationId: org.id,
+      email: user.email,
+      displayName: user.display_name,
+      role: "admin",
       now,
     });
   }
