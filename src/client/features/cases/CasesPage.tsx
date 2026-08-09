@@ -1,14 +1,20 @@
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
-import { apiGet } from "../../lib/api";
+import { apiGet, apiPostJson } from "../../lib/api";
 import { formatDate } from "../../lib/format";
 import {
+  Button,
   EmptyState,
+  ErrorBanner,
+  Field,
+  Input,
   LoadingBlock,
   PageHeader,
   Panel,
   PanelHeader,
   QueryErrorState,
+  SoftBanner,
   StatusBadge,
   DataTable,
 } from "../../components/ui";
@@ -81,9 +87,31 @@ type CaseDetail = {
 
 export function CasesPage() {
   const { t } = useI18n();
+  const queryClient = useQueryClient();
+  const [reference, setReference] = useState("");
+  const [vendorName, setVendorName] = useState("");
+  const [vendorTaxId, setVendorTaxId] = useState("");
+  const [createdCaseId, setCreatedCaseId] = useState<string | null>(null);
+
   const query = useQuery({
     queryKey: ["cases"],
     queryFn: () => apiGet<CasesResponse>("/api/cases"),
+  });
+
+  const createCase = useMutation({
+    mutationFn: () =>
+      apiPostJson<{ case: { id: string; reference: string } }>("/api/cases", {
+        reference: reference.trim(),
+        vendorName: vendorName.trim() || undefined,
+        vendorTaxId: vendorTaxId.trim() || undefined,
+      }),
+    onSuccess: (data) => {
+      setCreatedCaseId(data.case.id);
+      setReference("");
+      setVendorName("");
+      setVendorTaxId("");
+      void queryClient.invalidateQueries({ queryKey: ["cases"] });
+    },
   });
 
   if (query.isLoading) return <LoadingBlock label={t.common.loading} />;
@@ -99,11 +127,67 @@ export function CasesPage() {
   }
 
   return (
-    <div>
+    <div className="space-y-4">
       <PageHeader
         title={t.cases.title}
         description={t.cases.description}
       />
+
+      <Panel className="max-w-2xl p-4">
+        <PanelHeader
+          title={t.cases.createTitle}
+          subtitle={t.cases.createHint}
+        />
+        <form
+          className="mt-3 space-y-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!reference.trim()) return;
+            createCase.mutate();
+          }}
+        >
+          <Field label={t.cases.reference}>
+            <Input
+              value={reference}
+              onChange={(e) => setReference(e.target.value)}
+              placeholder="C2P-2026-…"
+              required
+            />
+          </Field>
+          <Field label={t.cases.vendor} hint={t.common.optional}>
+            <Input
+              value={vendorName}
+              onChange={(e) => setVendorName(e.target.value)}
+            />
+          </Field>
+          <Field label={t.cases.vendorTaxId} hint={t.common.optional}>
+            <Input
+              value={vendorTaxId}
+              onChange={(e) => setVendorTaxId(e.target.value)}
+            />
+          </Field>
+          {createCase.isError ? (
+            <ErrorBanner
+              message={
+                (createCase.error as Error).message || t.common.actionFailed
+              }
+            />
+          ) : null}
+          {createdCaseId ? (
+            <SoftBanner tone="ok">
+              {t.cases.createSuccess}{" "}
+              <Link className="font-medium text-accent-700" to={`/cases/${createdCaseId}`}>
+                {createdCaseId}
+              </Link>
+              . {t.cases.createUploadHint}
+            </SoftBanner>
+          ) : null}
+          <Button type="submit" disabled={createCase.isPending || !reference.trim()}>
+            {createCase.isPending ? t.common.loading : t.cases.createAction}
+          </Button>
+        </form>
+      </Panel>
+
       <Panel>
         {query.data!.items.length === 0 ? (
           <EmptyState

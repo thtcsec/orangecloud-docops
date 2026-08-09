@@ -33,13 +33,13 @@ Bản chứng minh use-case và triển khai tham chiếu cho presales / solutio
 - D1 relational schema (org-scoped, multi-tenant ready)
 - Queue consumer + durable Workflow (upload → extract → rules → human review)
 - Deterministic **Vietnamese invoice XML** field extraction (no invented AI values)
-- First Contract-to-Pay rules: arithmetic, duplicates, supplier match, XML core fields
+- First Contract-to-Pay rules: arithmetic, duplicates, supplier match, XML/PDF consistency (when peers exist)
 - Human review queue with immutable audit events
-- Internal ops UI: Dashboard, Documents, Cases, Review, Rules, Audit, Integrations
+- Internal ops UI: Dashboard, Documents, Cases (create + list), Review, Rules, Audit, Integrations catalogue
 - Product landing page at `/`
 - UI i18n: **Tiếng Việt** + **English**
 - GitHub Actions CI: typecheck · lint · test · build
-- Local seed data (synthetic fixtures only)
+- Local seed data under org slug `orangecloud-demo` (synthetic fixtures; binaries not in R2)
 
 ## Architecture
 

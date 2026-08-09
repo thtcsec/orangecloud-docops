@@ -11,9 +11,10 @@ OrangeCloud DocOps local smoke checklist
 4. npm run db:seed:local   (optional)
 5. npm run dev
 6. Open http://localhost:5173/dashboard
-7. Upload a small PDF or XML via /documents/upload
+7. Upload tests/fixtures/synthetic-invoice.xml via /documents/upload (type invoice_xml)
 8. Confirm document appears and moves toward NEEDS_REVIEW
 9. Decide on /review and confirm /audit entries
+10. Optional: create a case on /cases, paste case ID on upload
 
 Automated coverage: npm test
 `);

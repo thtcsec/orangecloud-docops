@@ -8,7 +8,11 @@ import type { ExtractionResult, ExtractedField } from "./types";
 
 const FIELD_TAGS: Record<
   string,
-  { tags: string[]; valueType: ExtractedField["valueType"] }
+  {
+    tags: string[];
+    valueType: ExtractedField["valueType"];
+    nested?: { parent: string; child: string };
+  }
 > = {
   invoice_number: {
     tags: [
@@ -40,33 +44,36 @@ const FIELD_TAGS: Record<
   vendor_name: {
     tags: [
       "SellerName",
-      "NBan",
       "TenNBan",
       "VendorName",
       "SupplierName",
       "Seller",
     ],
     valueType: "string",
+    nested: { parent: "NBan", child: "Ten" },
   },
   vendor_tax_id: {
     tags: [
       "SellerTaxCode",
-      "MST",
+      "MSTNBan",
       "MaSoThue",
       "TaxCode",
       "VendorTaxId",
       "SellerTIN",
-      "MSTNBan",
+      "MST",
     ],
     valueType: "string",
+    nested: { parent: "NBan", child: "MST" },
   },
   buyer_name: {
-    tags: ["BuyerName", "NMua", "TenNMua", "CustomerName", "Buyer"],
+    tags: ["BuyerName", "TenNMua", "CustomerName", "Buyer"],
     valueType: "string",
+    nested: { parent: "NMua", child: "Ten" },
   },
   buyer_tax_id: {
     tags: ["BuyerTaxCode", "MSTNMua", "BuyerTIN"],
     valueType: "string",
+    nested: { parent: "NMua", child: "MST" },
   },
   currency: {
     tags: ["Currency", "DVTTe", "CurrencyCode"],
@@ -118,10 +125,33 @@ function firstTagValue(
     const inner = match?.[1]?.trim();
     if (!inner) continue;
     // Prefer leaf text; strip nested tags if any.
-    const leaf = inner.replace(/<[^>]+>/g, "").trim();
+    const leaf = inner.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
     if (leaf) return { value: leaf, tag };
   }
   return null;
+}
+
+function nestedTagValue(
+  xml: string,
+  parent: string,
+  child: string,
+): { value: string; tag: string } | null {
+  const parentEsc = parent.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const childEsc = child.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const re = new RegExp(
+    `<(?:[\\w.-]+:)?${parentEsc}\\b[^>]*>([\\s\\S]*?)</(?:[\\w.-]+:)?${parentEsc}>`,
+    "i",
+  );
+  const parentMatch = xml.match(re);
+  if (!parentMatch?.[1]) return null;
+  const childRe = new RegExp(
+    `<(?:[\\w.-]+:)?${childEsc}\\b[^>]*>([\\s\\S]*?)</(?:[\\w.-]+:)?${childEsc}>`,
+    "i",
+  );
+  const childMatch = parentMatch[1].match(childRe);
+  const leaf = childMatch?.[1]?.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  if (!leaf) return null;
+  return { value: leaf, tag: `${parent}/${child}` };
 }
 
 function normalizeMoney(raw: string): string | null {
@@ -155,7 +185,10 @@ export function parseVietnamInvoiceXmlText(xml: string): ExtractionResult {
   const fields: ExtractedField[] = [];
 
   for (const [fieldName, spec] of Object.entries(FIELD_TAGS)) {
-    const hit = firstTagValue(xml, spec.tags);
+    const hit =
+      (spec.nested
+        ? nestedTagValue(xml, spec.nested.parent, spec.nested.child)
+        : null) || firstTagValue(xml, spec.tags);
     if (!hit) continue;
 
     let normalized: string | null = hit.value;
