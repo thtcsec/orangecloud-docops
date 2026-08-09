@@ -20,6 +20,10 @@ export const vi: TranslationSchema = {
   session: {
     resolving: "Đang xem bạn là ai…",
     notAuthenticated: "Bạn chưa đăng nhập",
+    accessRequiredTitle: "Đăng nhập qua Cloudflare Access",
+    accessRequiredBody:
+      "DocOps là nội bộ. Vào qua màn Access — nếu đã login mà vẫn thấy dòng này, Access có thể chưa canh hostname.",
+    reload: "Tải lại sau khi login Access",
   },
   common: {
     loading: "Chờ một chút…",

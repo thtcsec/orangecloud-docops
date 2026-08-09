@@ -18,6 +18,10 @@ export const en = {
   session: {
     resolving: "Checking who you are…",
     notAuthenticated: "You’re not signed in",
+    accessRequiredTitle: "Sign in with Cloudflare Access",
+    accessRequiredBody:
+      "DocOps is internal. Open this site through your Access login — if you already signed in and still see this, Access may not be protecting the hostname yet.",
+    reload: "Reload after Access login",
   },
   common: {
     loading: "One moment…",

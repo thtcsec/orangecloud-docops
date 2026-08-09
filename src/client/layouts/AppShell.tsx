@@ -7,6 +7,7 @@ import {
   ThemeToggle,
 } from "../components/HeaderControls";
 import { SiteFooter } from "../components/SiteFooter";
+import { QueryErrorState } from "../components/ui";
 import { useI18n } from "../i18n";
 
 type Session = {
@@ -26,6 +27,7 @@ export function AppShell() {
   const session = useQuery({
     queryKey: ["session"],
     queryFn: () => apiGet<Session>("/api/session"),
+    retry: 1,
   });
 
   const nav = [
@@ -97,7 +99,24 @@ export function AppShell() {
       </header>
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6">
         <div key={location.pathname} className="page-enter">
-          <Outlet />
+          {session.isError ? (
+            <QueryErrorState
+              title={t.session.accessRequiredTitle}
+              message={t.session.accessRequiredBody}
+              onRetry={() => window.location.reload()}
+              retryLabel={t.session.reload}
+            />
+          ) : session.isLoading ? (
+            <div className="animate-fade-in flex items-center gap-3 py-10 text-base text-ink-500">
+              <span
+                className="inline-block size-4 animate-spin rounded-full border-2 border-slate-300 border-t-accent-500"
+                aria-hidden
+              />
+              {t.session.resolving}
+            </div>
+          ) : (
+            <Outlet />
+          )}
         </div>
       </main>
       <SiteFooter compact />

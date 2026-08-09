@@ -73,11 +73,22 @@ export async function resolvePrincipal(
   }
 
   // Production/staging: trust Cloudflare Access JWT after signature validation.
+  // Edge injects Cf-Access-Jwt-Assertion when Access protects the hostname;
+  // browsers also hold CF_Authorization cookie on the app domain.
   const jwt =
     request.headers.get("Cf-Access-Jwt-Assertion") ||
-    request.headers.get("cf-access-jwt-assertion");
+    request.headers.get("cf-access-jwt-assertion") ||
+    readCookie(request, "CF_Authorization");
 
   if (!jwt) {
+    logger.warn("access_jwt_missing", {
+      environment: env.ENVIRONMENT,
+      hasAccessHeader: Boolean(
+        request.headers.get("Cf-Access-Jwt-Assertion") ||
+          request.headers.get("cf-access-jwt-assertion"),
+      ),
+      hasAuthCookie: Boolean(readCookie(request, "CF_Authorization")),
+    });
     return null;
   }
 
@@ -143,16 +154,39 @@ export async function resolvePrincipal(
 
 type AccessIdentity = { email: string; name?: string };
 
+function readCookie(request: Request, name: string): string | null {
+  const raw = request.headers.get("Cookie");
+  if (!raw) return null;
+  for (const part of raw.split(";")) {
+    const [k, ...rest] = part.trim().split("=");
+    if (k === name) {
+      const value = rest.join("=").trim();
+      return value ? decodeURIComponent(value) : null;
+    }
+  }
+  return null;
+}
+
 async function verifyAccessJwt(
   token: string,
   env: Env,
 ): Promise<AccessIdentity | null> {
   try {
-    const team = env.CF_ACCESS_TEAM_DOMAIN!;
+    const team = env.CF_ACCESS_TEAM_DOMAIN!.replace(/^https?:\/\//, "").replace(
+      /\.cloudflareaccess\.com$/i,
+      "",
+    );
     const aud = env.CF_ACCESS_AUD!;
-    const certsUrl = `https://${team}.cloudflareaccess.com/cdn-cgi/access/certs`;
+    const issuer = `https://${team}.cloudflareaccess.com`;
+    const certsUrl = `${issuer}/cdn-cgi/access/certs`;
     const certsResp = await fetch(certsUrl);
-    if (!certsResp.ok) return null;
+    if (!certsResp.ok) {
+      logger.error("access_certs_fetch_failed", {
+        status: certsResp.status,
+        team,
+      });
+      return null;
+    }
     const certs = (await certsResp.json()) as {
       keys: JsonWebKey[];
     };
@@ -163,6 +197,7 @@ async function verifyAccessJwt(
       atob(payloadB64.replace(/-/g, "+").replace(/_/g, "/")),
     ) as {
       aud?: string | string[];
+      iss?: string;
       email?: string;
       common_name?: string;
       name?: string;
@@ -172,7 +207,20 @@ async function verifyAccessJwt(
     const audOk = Array.isArray(payloadJson.aud)
       ? payloadJson.aud.includes(aud)
       : payloadJson.aud === aud;
-    if (!audOk) return null;
+    if (!audOk) {
+      logger.warn("access_aud_mismatch", {
+        expected: aud,
+        actual: payloadJson.aud,
+      });
+      return null;
+    }
+    if (payloadJson.iss && payloadJson.iss !== issuer) {
+      logger.warn("access_iss_mismatch", {
+        expected: issuer,
+        actual: payloadJson.iss,
+      });
+      return null;
+    }
     if (payloadJson.exp && payloadJson.exp * 1000 < Date.now()) return null;
 
     // Validate signature against published JWKS.
