@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- Node.js 20+
+- Node.js 22+
 - npm 10+
 - Cloudflare account **Cloudspace** (`4c15704ef706b9c8954cd6f9feb678d8`)
 - Wrangler authenticated (`npx wrangler login`)
