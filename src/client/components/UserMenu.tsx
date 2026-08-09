@@ -48,7 +48,7 @@ export function UserMenu({ user }: { user: SessionUser }) {
   }, [open]);
 
   return (
-    <div className="relative" ref={rootRef}>
+    <div className="relative z-50" ref={rootRef}>
       <button
         type="button"
         className="flex max-w-[280px] items-center gap-2.5 rounded-md border border-slate-200/80 bg-white px-2.5 py-1.5 text-left transition hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:hover:bg-slate-800"
@@ -80,7 +80,7 @@ export function UserMenu({ user }: { user: SessionUser }) {
           id={menuId}
           role="dialog"
           aria-label={t.roles.profileTitle}
-          className="absolute right-0 z-30 mt-2 w-[320px] rounded-lg border border-slate-200 bg-white p-4 shadow-lg dark:border-slate-700 dark:bg-slate-900"
+          className="absolute right-0 z-[60] mt-2 w-[320px] rounded-lg border border-slate-200 bg-white p-4 shadow-xl ring-1 ring-black/5 dark:border-slate-600 dark:bg-slate-950 dark:ring-white/10"
         >
           <div className="flex items-start gap-3">
             <span

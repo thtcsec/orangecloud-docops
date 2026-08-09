@@ -45,7 +45,7 @@ export function AppShell() {
 
   return (
     <div className="flex min-h-full flex-col">
-      <header className="border-b border-slate-200/80 bg-white/90 backdrop-blur dark:border-slate-800 dark:bg-slate-950/80">
+      <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white backdrop-blur-sm dark:border-slate-800 dark:bg-slate-950">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3">
           <NavLink to="/" className="flex items-center" aria-label={t.brand.name}>
             <BrandLogo variant="auto" className="h-8 w-auto max-w-[220px]" />
