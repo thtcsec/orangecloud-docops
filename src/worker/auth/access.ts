@@ -1,3 +1,4 @@
+import { createRemoteJWKSet, decodeJwt, jwtVerify } from "jose";
 import type { UserRole } from "@shared/domain";
 import { USER_ROLES } from "@shared/domain";
 import { createId, nowIso } from "../utils/id";
@@ -7,22 +8,38 @@ import { findUserByEmail, upsertLocalUser } from "../db/repositories/users";
 import type { AppPrincipal } from "./principal";
 import { logger } from "../utils/logger";
 
-const JWKS_CACHE_TTL_SECONDS = 600;
-const JWT_CLOCK_SKEW_MS = 60_000;
-
 /** Isolate-local cache for the bootstrap org (stable per Worker isolate). */
 let cachedDefaultOrg: OrganizationRow | null = null;
 
-type JwksPayload = { keys: Array<JsonWebKey & { kid?: string }> };
-type CachedJwks = { fetchedAt: number; keys: JwksPayload["keys"] };
+const jwksByIssuer = new Map<string, ReturnType<typeof createRemoteJWKSet>>();
 
-/** Isolate-local JWKS cache; Cache API used when available. */
-const jwksMemory = new Map<string, CachedJwks>();
+export type AccessAuthFailureReason =
+  | "jwt_missing"
+  | "secrets_missing"
+  | "aud_mismatch"
+  | "iss_mismatch"
+  | "signature_invalid"
+  | "email_missing"
+  | "verify_failed";
+
+export type AccessAuthFailure = {
+  reason: AccessAuthFailureReason;
+  hasJwtHeader: boolean;
+  hasJwtCookie: boolean;
+  /** First 8 chars of configured AUD — safe to show in UI. */
+  configuredAudPrefix?: string;
+  /** First 8 chars of token aud claim. */
+  tokenAudPrefix?: string;
+  configuredIss?: string;
+  tokenIss?: string;
+  message?: string;
+};
+
+type AccessIdentity = { email: string; name?: string };
 
 function isLocalAuthEnabled(env: Env): boolean {
   return (
-    env.ENVIRONMENT === "local" &&
-    env.LOCAL_DEV_AUTH_ENABLED === "true"
+    env.ENVIRONMENT === "local" && env.LOCAL_DEV_AUTH_ENABLED === "true"
   );
 }
 
@@ -44,9 +61,213 @@ async function getDefaultOrg(env: Env, now: string): Promise<OrganizationRow> {
   return cachedDefaultOrg;
 }
 
+function readCookie(request: Request, name: string): string | null {
+  const raw = request.headers.get("Cookie");
+  if (!raw) return null;
+  for (const part of raw.split(";")) {
+    const [k, ...rest] = part.trim().split("=");
+    if (k === name) {
+      const value = rest.join("=").trim();
+      if (!value) return null;
+      // Only decode when percent-encoded — blind decodeURIComponent can corrupt JWTs.
+      if (!value.includes("%")) return value;
+      try {
+        return decodeURIComponent(value);
+      } catch {
+        return value;
+      }
+    }
+  }
+  return null;
+}
+
+function prefix8(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  return value.slice(0, 8);
+}
+
+function normalizeTeamIssuer(raw: string): string {
+  const trimmed = raw.trim().replace(/\/$/, "");
+  if (/^https?:\/\//i.test(trimmed)) {
+    return trimmed.replace(/\/cdn-cgi\/access\/certs$/i, "");
+  }
+  const team = trimmed
+    .replace(/^https?:\/\//, "")
+    .replace(/\.cloudflareaccess\.com$/i, "");
+  return `https://${team}.cloudflareaccess.com`;
+}
+
+function getAccessJwt(request: Request): {
+  jwt: string | null;
+  hasJwtHeader: boolean;
+  hasJwtCookie: boolean;
+} {
+  const header =
+    request.headers.get("Cf-Access-Jwt-Assertion") ||
+    request.headers.get("cf-access-jwt-assertion");
+  const cookie = readCookie(request, "CF_Authorization");
+  return {
+    jwt: header || cookie,
+    hasJwtHeader: Boolean(header),
+    hasJwtCookie: Boolean(cookie),
+  };
+}
+
+function peekTokenClaims(jwt: string): {
+  aud?: string | string[];
+  iss?: string;
+  email?: string;
+  common_name?: string;
+  name?: string;
+} {
+  try {
+    return decodeJwt(jwt);
+  } catch {
+    return {};
+  }
+}
+
+function audValues(aud: string | string[] | undefined): string[] {
+  if (!aud) return [];
+  return Array.isArray(aud) ? aud : [aud];
+}
+
 /**
- * Validate Cloudflare Access JWT when configured.
- * Local development uses an explicit, clearly named bypass that is disabled outside local.
+ * Validate Cloudflare Access JWT (header preferred, cookie fallback).
+ * Returns a typed failure so /api/auth/start can show the real misconfig.
+ */
+export async function authenticateAccessRequest(
+  request: Request,
+  env: Env,
+): Promise<
+  | { ok: true; identity: AccessIdentity }
+  | { ok: false; failure: AccessAuthFailure }
+> {
+  const { jwt, hasJwtHeader, hasJwtCookie } = getAccessJwt(request);
+  if (!jwt) {
+    logger.warn("access_jwt_missing", {
+      environment: env.ENVIRONMENT,
+      hasJwtHeader,
+      hasJwtCookie,
+    });
+    return {
+      ok: false,
+      failure: { reason: "jwt_missing", hasJwtHeader, hasJwtCookie },
+    };
+  }
+
+  if (!env.CF_ACCESS_AUD || !env.CF_ACCESS_TEAM_DOMAIN) {
+    logger.error("access_not_configured", { environment: env.ENVIRONMENT });
+    return {
+      ok: false,
+      failure: {
+        reason: "secrets_missing",
+        hasJwtHeader,
+        hasJwtCookie,
+        message: "CF_ACCESS_AUD / CF_ACCESS_TEAM_DOMAIN missing on Worker",
+      },
+    };
+  }
+
+  const aud = env.CF_ACCESS_AUD.trim();
+  const issuer = normalizeTeamIssuer(env.CF_ACCESS_TEAM_DOMAIN);
+  const claims = peekTokenClaims(jwt);
+  const tokenAudList = audValues(claims.aud);
+
+  if (tokenAudList.length > 0 && !tokenAudList.includes(aud)) {
+    logger.warn("access_aud_mismatch", {
+      expectedPrefix: prefix8(aud),
+      actualPrefix: tokenAudList.map(prefix8),
+    });
+    return {
+      ok: false,
+      failure: {
+        reason: "aud_mismatch",
+        hasJwtHeader,
+        hasJwtCookie,
+        configuredAudPrefix: prefix8(aud),
+        tokenAudPrefix: prefix8(tokenAudList[0]),
+        configuredIss: issuer,
+        tokenIss: claims.iss,
+        message:
+          "Worker CF_ACCESS_AUD does not match the JWT aud claim. Copy Application Audience (AUD) Tag from Zero Trust → Access → Applications → this app.",
+      },
+    };
+  }
+
+  try {
+    let jwks = jwksByIssuer.get(issuer);
+    if (!jwks) {
+      jwks = createRemoteJWKSet(new URL(`${issuer}/cdn-cgi/access/certs`));
+      jwksByIssuer.set(issuer, jwks);
+    }
+
+    const { payload } = await jwtVerify(jwt, jwks, {
+      issuer,
+      audience: aud,
+    });
+
+    const email =
+      (typeof payload.email === "string" && payload.email) ||
+      (typeof payload.common_name === "string" && payload.common_name) ||
+      undefined;
+    if (!email) {
+      logger.warn("access_jwt_email_missing");
+      return {
+        ok: false,
+        failure: {
+          reason: "email_missing",
+          hasJwtHeader,
+          hasJwtCookie,
+          message:
+            "JWT verified but has no email/common_name claim (IdP must release email).",
+        },
+      };
+    }
+
+    return {
+      ok: true,
+      identity: {
+        email,
+        name: typeof payload.name === "string" ? payload.name : undefined,
+      },
+    };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "unknown";
+    const lower = message.toLowerCase();
+    let reason: AccessAuthFailureReason = "verify_failed";
+    if (lower.includes("aud")) reason = "aud_mismatch";
+    else if (lower.includes("iss")) reason = "iss_mismatch";
+    else if (lower.includes("signature") || lower.includes("jwks")) {
+      reason = "signature_invalid";
+    }
+
+    logger.error("access_jwt_verify_failed", {
+      errorCode: "ACCESS_JWT_INVALID",
+      reason,
+      message,
+      hasJwtHeader,
+      hasJwtCookie,
+    });
+
+    return {
+      ok: false,
+      failure: {
+        reason,
+        hasJwtHeader,
+        hasJwtCookie,
+        configuredAudPrefix: prefix8(aud),
+        tokenAudPrefix: prefix8(tokenAudList[0]),
+        configuredIss: issuer,
+        tokenIss: claims.iss,
+        message,
+      },
+    };
+  }
+}
+
+/**
+ * Resolve the signed-in principal for API requests.
  */
 export async function resolvePrincipal(
   request: Request,
@@ -90,40 +311,10 @@ export async function resolvePrincipal(
     };
   }
 
-  // Production/staging: trust Cloudflare Access JWT after signature validation.
-  // Edge injects Cf-Access-Jwt-Assertion when Access protects the hostname;
-  // browsers also hold CF_Authorization cookie on the app domain.
-  const jwt =
-    request.headers.get("Cf-Access-Jwt-Assertion") ||
-    request.headers.get("cf-access-jwt-assertion") ||
-    readCookie(request, "CF_Authorization");
+  const auth = await authenticateAccessRequest(request, env);
+  if (!auth.ok) return null;
 
-  if (!jwt) {
-    logger.warn("access_jwt_missing", {
-      environment: env.ENVIRONMENT,
-      hasAccessHeader: Boolean(
-        request.headers.get("Cf-Access-Jwt-Assertion") ||
-          request.headers.get("cf-access-jwt-assertion"),
-      ),
-      hasAuthCookie: Boolean(readCookie(request, "CF_Authorization")),
-    });
-    return null;
-  }
-
-  if (!env.CF_ACCESS_AUD || !env.CF_ACCESS_TEAM_DOMAIN) {
-    logger.error("access_not_configured", {
-      environment: env.ENVIRONMENT,
-      message:
-        "CF_ACCESS_AUD / CF_ACCESS_TEAM_DOMAIN secrets missing — refusing auth",
-    });
-    return null;
-  }
-
-  const identity = await verifyAccessJwt(jwt, env);
-  if (!identity?.email) {
-    return null;
-  }
-
+  const identity = auth.identity;
   let user = await findUserByEmail(env.DOCOPS_DB, org.id, identity.email);
   if (!user) {
     const bootstrap = (env.BOOTSTRAP_ADMIN_EMAILS || "")
@@ -149,7 +340,6 @@ export async function resolvePrincipal(
       .filter(Boolean)
       .includes(identity.email.toLowerCase())
   ) {
-    // Elevate pre-seeded / first-login viewer listed as bootstrap admin.
     user = await upsertLocalUser(env.DOCOPS_DB, {
       id: user.id,
       organizationId: org.id,
@@ -168,218 +358,4 @@ export async function resolvePrincipal(
     role: user.role,
     authSource: "cloudflare_access",
   };
-}
-
-type AccessIdentity = { email: string; name?: string };
-
-function readCookie(request: Request, name: string): string | null {
-  const raw = request.headers.get("Cookie");
-  if (!raw) return null;
-  for (const part of raw.split(";")) {
-    const [k, ...rest] = part.trim().split("=");
-    if (k === name) {
-      const value = rest.join("=").trim();
-      if (!value) return null;
-      try {
-        return decodeURIComponent(value);
-      } catch {
-        return value;
-      }
-    }
-  }
-  return null;
-}
-
-function base64UrlToBytes(input: string): Uint8Array {
-  const padded = input.replace(/-/g, "+").replace(/_/g, "/");
-  const pad =
-    padded.length % 4 === 0 ? "" : "=".repeat(4 - (padded.length % 4));
-  const binary = atob(padded + pad);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i += 1) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  return bytes;
-}
-
-function base64UrlToJson<T>(input: string): T {
-  return JSON.parse(new TextDecoder().decode(base64UrlToBytes(input))) as T;
-}
-
-async function loadJwks(certsUrl: string): Promise<JwksPayload["keys"]> {
-  const memory = jwksMemory.get(certsUrl);
-  if (memory && Date.now() - memory.fetchedAt < JWKS_CACHE_TTL_SECONDS * 1000) {
-    return memory.keys;
-  }
-
-  try {
-    const cacheKey = new Request(certsUrl, { method: "GET" });
-    const cached = await caches.default.match(cacheKey);
-    if (cached?.ok) {
-      const payload = (await cached.json()) as JwksPayload;
-      if (Array.isArray(payload.keys)) {
-        jwksMemory.set(certsUrl, {
-          fetchedAt: Date.now(),
-          keys: payload.keys,
-        });
-        return payload.keys;
-      }
-    }
-  } catch {
-    // Cache API may be unavailable in some test runtimes — fall through.
-  }
-
-  const certsResp = await fetch(certsUrl);
-  if (!certsResp.ok) {
-    throw new Error(`JWKS HTTP ${certsResp.status}`);
-  }
-  const payload = (await certsResp.json()) as JwksPayload;
-  if (!Array.isArray(payload.keys)) {
-    throw new Error("JWKS missing keys");
-  }
-
-  jwksMemory.set(certsUrl, { fetchedAt: Date.now(), keys: payload.keys });
-
-  try {
-    const cacheKey = new Request(certsUrl, { method: "GET" });
-    await caches.default.put(
-      cacheKey,
-      new Response(JSON.stringify(payload), {
-        headers: {
-          "content-type": "application/json",
-          "cache-control": `public, max-age=${JWKS_CACHE_TTL_SECONDS}`,
-        },
-      }),
-    );
-  } catch {
-    // Best-effort Cache API write.
-  }
-
-  return payload.keys;
-}
-
-async function verifyAccessJwt(
-  token: string,
-  env: Env,
-): Promise<AccessIdentity | null> {
-  try {
-    const team = env.CF_ACCESS_TEAM_DOMAIN!.replace(/^https?:\/\//, "").replace(
-      /\.cloudflareaccess\.com$/i,
-      "",
-    );
-    const aud = env.CF_ACCESS_AUD!;
-    const issuer = `https://${team}.cloudflareaccess.com`;
-    const certsUrl = `${issuer}/cdn-cgi/access/certs`;
-
-    let keys: JwksPayload["keys"];
-    try {
-      keys = await loadJwks(certsUrl);
-    } catch (err) {
-      logger.error("access_certs_fetch_failed", {
-        team,
-        message: err instanceof Error ? err.message : "unknown",
-      });
-      return null;
-    }
-
-    const [headerB64, payloadB64, signatureB64] = token.split(".");
-    if (!headerB64 || !payloadB64 || !signatureB64) {
-      logger.warn("access_jwt_malformed");
-      return null;
-    }
-
-    const header = base64UrlToJson<{ kid?: string; alg?: string }>(headerB64);
-    if (header.alg && header.alg !== "RS256") {
-      logger.warn("access_jwt_alg_rejected", { alg: header.alg });
-      return null;
-    }
-
-    const payloadJson = base64UrlToJson<{
-      aud?: string | string[];
-      iss?: string;
-      email?: string;
-      common_name?: string;
-      name?: string;
-      exp?: number;
-      nbf?: number;
-    }>(payloadB64);
-
-    const audOk = Array.isArray(payloadJson.aud)
-      ? payloadJson.aud.includes(aud)
-      : payloadJson.aud === aud;
-    if (!audOk) {
-      logger.warn("access_aud_mismatch", {
-        expected: aud,
-        actual: payloadJson.aud,
-      });
-      return null;
-    }
-    if (payloadJson.iss && payloadJson.iss !== issuer) {
-      logger.warn("access_iss_mismatch", {
-        expected: issuer,
-        actual: payloadJson.iss,
-      });
-      return null;
-    }
-
-    const now = Date.now();
-    if (
-      payloadJson.nbf &&
-      payloadJson.nbf * 1000 - JWT_CLOCK_SKEW_MS > now
-    ) {
-      logger.warn("access_jwt_nbf");
-      return null;
-    }
-    if (
-      payloadJson.exp &&
-      payloadJson.exp * 1000 + JWT_CLOCK_SKEW_MS < now
-    ) {
-      logger.warn("access_jwt_expired");
-      return null;
-    }
-
-    const jwk = keys.find((k) => k.kid === header.kid);
-    if (!jwk) {
-      logger.warn("access_jwk_kid_missing", { kid: header.kid });
-      return null;
-    }
-
-    const key = await crypto.subtle.importKey(
-      "jwk",
-      {
-        kty: jwk.kty,
-        n: jwk.n,
-        e: jwk.e,
-        alg: "RS256",
-      },
-      { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
-      false,
-      ["verify"],
-    );
-    const data = new TextEncoder().encode(`${headerB64}.${payloadB64}`);
-    const signature = base64UrlToBytes(signatureB64);
-    const valid = await crypto.subtle.verify(
-      "RSASSA-PKCS1-v1_5",
-      key,
-      signature,
-      data,
-    );
-    if (!valid) {
-      logger.warn("access_jwt_signature_invalid");
-      return null;
-    }
-
-    const email = payloadJson.email || payloadJson.common_name;
-    if (!email) {
-      logger.warn("access_jwt_email_missing");
-      return null;
-    }
-    return { email, name: payloadJson.name };
-  } catch (err) {
-    logger.error("access_jwt_verify_failed", {
-      errorCode: "ACCESS_JWT_INVALID",
-      message: err instanceof Error ? err.message : "unknown",
-    });
-    return null;
-  }
 }

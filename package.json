@@ -23,14 +23,15 @@
     "smoke:local": "tsx scripts/smoke-local.ts"
   },
   "dependencies": {
+    "@hookform/resolvers": "^5.1.1",
     "@tanstack/react-query": "^5.83.0",
     "hono": "^4.8.5",
+    "jose": "^6.2.8",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-hook-form": "^7.60.0",
     "react-router-dom": "^7.7.0",
-    "zod": "^3.25.76",
-    "@hookform/resolvers": "^5.1.1"
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.50.0",
