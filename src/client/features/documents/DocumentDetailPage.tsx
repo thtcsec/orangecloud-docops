@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { apiGet, apiPostJson } from "../../lib/api";
 import { formatBytes, formatDate } from "../../lib/format";
 import { appPath } from "../../lib/paths";
+import { isDocumentInFlight, isRunInFlight } from "../../lib/processing";
 import {
   Button,
   EmptyState,
@@ -12,6 +13,7 @@ import {
   Panel,
   PanelHeader,
   QueryErrorState,
+  SoftBanner,
   StatusBadge,
 } from "../../components/ui";
 import { useI18n } from "../../i18n";
@@ -78,7 +80,7 @@ type Detail = {
     actor_type: string;
     created_at: string;
   }>;
-  preview: { available: boolean; message: string };
+  preview: { available: boolean; message?: string };
 };
 
 export function DocumentDetailPage() {
@@ -89,12 +91,26 @@ export function DocumentDetailPage() {
     queryKey: ["document", documentId],
     queryFn: () => apiGet<Detail>(`/api/documents/${documentId}`),
     enabled: Boolean(documentId),
+    refetchInterval: (q) => {
+      const data = q.state.data;
+      if (!data) return false;
+      if (isDocumentInFlight(data.document.status)) return 2000;
+      if (data.processingRuns.some((run) => isRunInFlight(run.status))) {
+        return 2000;
+      }
+      return false;
+    },
   });
 
   const reprocess = useMutation({
     mutationFn: () =>
       apiPostJson(`/api/documents/${documentId}/reprocess`, {}),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["document", documentId] }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["document", documentId] });
+      void qc.invalidateQueries({ queryKey: ["documents"] });
+      void qc.invalidateQueries({ queryKey: ["dashboard"] });
+      void qc.invalidateQueries({ queryKey: ["reviews"] });
+    },
   });
 
   if (query.isLoading) return <LoadingBlock label={t.common.loading} />;
@@ -104,15 +120,14 @@ export function DocumentDetailPage() {
         title={t.nav.documents}
         backTo={appPath("/documents")}
         backLabel={t.common.backToDocuments}
-        message={
-          (query.error as Error).message || t.common.loadFailed
-        }
+        message={(query.error as Error).message || t.common.loadFailed}
         onRetry={() => void query.refetch()}
         retryLabel={t.common.retry}
       />
     );
   }
   const data = query.data!;
+  const busy = isDocumentInFlight(data.document.status);
 
   return (
     <div className="space-y-4">
@@ -132,13 +147,21 @@ export function DocumentDetailPage() {
             <Button
               variant="secondary"
               onClick={() => reprocess.mutate()}
-              disabled={reprocess.isPending}
+              disabled={reprocess.isPending || busy}
             >
-              {t.documentDetail.reprocess}
+              {busy
+                ? t.documentDetail.reprocessBusy
+                : t.documentDetail.reprocess}
             </Button>
           </>
         }
       />
+      {busy ? (
+        <SoftBanner tone="ok">{t.common.processingLive}</SoftBanner>
+      ) : null}
+      {reprocess.isSuccess ? (
+        <SoftBanner tone="ok">{t.documentDetail.reprocessQueued}</SoftBanner>
+      ) : null}
       {reprocess.isError ? (
         <ErrorBanner
           message={
@@ -187,9 +210,12 @@ export function DocumentDetailPage() {
         </Panel>
 
         <Panel className="lg:col-span-2">
-          <PanelHeader title={t.documentDetail.preview} subtitle={t.documentDetail.previewSub} />
+          <PanelHeader
+            title={t.documentDetail.preview}
+            subtitle={t.documentDetail.previewSub}
+          />
           <div className="px-4 py-6 text-sm text-ink-500">
-            {data.preview.message}
+            {t.documentDetail.previewSub}
           </div>
         </Panel>
       </div>
@@ -236,7 +262,7 @@ export function DocumentDetailPage() {
                 <div className="mt-1 text-xs text-ink-500">
                   {formatDate(run.created_at)}
                   {run.workflow_instance_id
-                    ? ` · workflow ${run.workflow_instance_id}`
+                    ? ` · ${t.documentDetail.workflowId.replace("{id}", run.workflow_instance_id)}`
                     : ""}
                   {run.error_code ? ` · ${run.error_code}` : ""}
                 </div>
@@ -326,7 +352,8 @@ export function DocumentDetailPage() {
                 <li key={d.id} className="px-4 py-3 text-sm">
                   <StatusBadge status={d.decision} />
                   <div className="mt-1 text-ink-500">
-                    {d.comment || t.documentDetail.noComment} · {formatDate(d.created_at)}
+                    {d.comment || t.documentDetail.noComment} ·{" "}
+                    {formatDate(d.created_at)}
                   </div>
                 </li>
               ))}

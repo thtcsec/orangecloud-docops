@@ -423,3 +423,76 @@ export async function getLatestProcessingResult(
       .bind(documentVersionId),
   );
 }
+
+/** Batch enrich a document list (avoids 2N queries per page). */
+export async function enrichDocumentsForList(
+  db: Db,
+  docs: DocumentRow[],
+): Promise<
+  Array<
+    DocumentRow & {
+      fileSize: number | null;
+      latestProcessing: {
+        id: string;
+        status: string;
+        errorCode: string | null;
+        provider: string;
+      } | null;
+    }
+  >
+> {
+  const versionIds = docs
+    .map((d) => d.current_version_id)
+    .filter((id): id is string => Boolean(id));
+
+  if (versionIds.length === 0) {
+    return docs.map((doc) => ({
+      ...doc,
+      fileSize: null,
+      latestProcessing: null,
+    }));
+  }
+
+  const placeholders = versionIds.map(() => "?").join(",");
+  const versions = await all<{ id: string; file_size: number }>(
+    db
+      .prepare(
+        `SELECT id, file_size FROM document_versions WHERE id IN (${placeholders})`,
+      )
+      .bind(...versionIds),
+  );
+  const runs = await all<ProcessingRunRow>(
+    db
+      .prepare(
+        `SELECT * FROM processing_runs
+         WHERE document_version_id IN (${placeholders})
+         ORDER BY created_at DESC`,
+      )
+      .bind(...versionIds),
+  );
+
+  const sizeById = new Map(versions.map((v) => [v.id, v.file_size]));
+  const latestByVersion = new Map<string, ProcessingRunRow>();
+  for (const run of runs) {
+    if (!latestByVersion.has(run.document_version_id)) {
+      latestByVersion.set(run.document_version_id, run);
+    }
+  }
+
+  return docs.map((doc) => {
+    const versionId = doc.current_version_id;
+    const latest = versionId ? latestByVersion.get(versionId) : undefined;
+    return {
+      ...doc,
+      fileSize: versionId ? (sizeById.get(versionId) ?? null) : null,
+      latestProcessing: latest
+        ? {
+            id: latest.id,
+            status: latest.status,
+            errorCode: latest.error_code,
+            provider: latest.provider,
+          }
+        : null,
+    };
+  });
+}

@@ -7,7 +7,7 @@ import { documentsQuerySchema } from "../schemas/common";
 import { uploadDocument } from "../../services/upload";
 import {
   getDocument,
-  getLatestProcessingResult,
+  enrichDocumentsForList,
   getVersion,
   listDocuments,
   listExtractedFields,
@@ -49,29 +49,7 @@ documentRoutes.get("/documents", requireAuth, async (c) => {
     offset,
   });
 
-  const items = await Promise.all(
-    result.items.map(async (doc) => {
-      const latest = await getLatestProcessingResult(
-        c.env.DOCOPS_DB,
-        doc.current_version_id,
-      );
-      const version = doc.current_version_id
-        ? await getVersion(c.env.DOCOPS_DB, doc.current_version_id)
-        : null;
-      return {
-        ...doc,
-        fileSize: version?.file_size ?? null,
-        latestProcessing: latest
-          ? {
-              id: latest.id,
-              status: latest.status,
-              errorCode: latest.error_code,
-              provider: latest.provider,
-            }
-          : null,
-      };
-    }),
-  );
+  const items = await enrichDocumentsForList(c.env.DOCOPS_DB, result.items);
 
   return ok(c, {
     items,
@@ -153,22 +131,23 @@ documentRoutes.get("/documents/:documentId", requireAuth, async (c) => {
   const currentVersion = doc.current_version_id
     ? await getVersion(c.env.DOCOPS_DB, doc.current_version_id)
     : null;
-  const runs = currentVersion
-    ? await listProcessingRuns(c.env.DOCOPS_DB, currentVersion.id)
-    : [];
-  const fields = currentVersion
-    ? await listExtractedFields(c.env.DOCOPS_DB, currentVersion.id)
-    : [];
-  const rules = await listRuleResultsForDocument(c.env.DOCOPS_DB, documentId);
-  const decisions = await listReviewDecisionsForDocument(
-    c.env.DOCOPS_DB,
-    documentId,
-  );
-  const audit = await listAuditEvents(
-    c.env.DOCOPS_DB,
-    principal.organizationId,
-    { entityId: documentId, entityType: "document", limit: 50, offset: 0 },
-  );
+
+  const [runs, fields, rules, decisions, audit] = await Promise.all([
+    currentVersion
+      ? listProcessingRuns(c.env.DOCOPS_DB, currentVersion.id)
+      : Promise.resolve([]),
+    currentVersion
+      ? listExtractedFields(c.env.DOCOPS_DB, currentVersion.id)
+      : Promise.resolve([]),
+    listRuleResultsForDocument(c.env.DOCOPS_DB, documentId),
+    listReviewDecisionsForDocument(c.env.DOCOPS_DB, documentId),
+    listAuditEvents(c.env.DOCOPS_DB, principal.organizationId, {
+      entityId: documentId,
+      entityType: "document",
+      limit: 50,
+      offset: 0,
+    }),
+  ]);
 
   return ok(c, {
     document: doc,
@@ -181,8 +160,6 @@ documentRoutes.get("/documents/:documentId", requireAuth, async (c) => {
     auditEvents: audit.items,
     preview: {
       available: false,
-      message:
-        "Document preview is a safe placeholder in Phase 1. Use the protected download route.",
     },
   });
 });

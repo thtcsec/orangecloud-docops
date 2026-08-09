@@ -43,7 +43,7 @@ export function RulesPage() {
     <div>
       <PageHeader
         title={t.rules.title}
-        description={query.data!.note}
+        description={t.rules.description}
       />
       <Panel>
         <ul className="divide-y divide-slate-100">

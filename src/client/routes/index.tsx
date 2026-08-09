@@ -14,10 +14,12 @@ import { RulesPage } from "../features/rules/RulesPage";
 import { AuditPage } from "../features/audit/AuditPage";
 import { IntegrationsPage } from "../features/integrations/IntegrationsPage";
 import { PrivacyPage } from "../features/privacy/PrivacyPage";
+import { useI18n } from "../i18n";
 import { APP_BASE, LEGACY_APP_SEGMENTS } from "../lib/paths";
 
 /** Full browser navigation so Cloudflare Access can intercept /app/*. */
 function LegacyAppRedirect() {
+  const { t } = useI18n();
   const { pathname, search, hash } = useLocation();
   const target = `${APP_BASE}${pathname}${search}${hash}`;
 
@@ -27,7 +29,7 @@ function LegacyAppRedirect() {
 
   return (
     <p className="p-6 text-sm text-ink-500">
-      Redirecting to {target}…
+      {t.common.loading} {target}
     </p>
   );
 }

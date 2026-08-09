@@ -1,10 +1,12 @@
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { DOCUMENT_STATUSES, DOCUMENT_TYPES } from "@shared/domain";
 import { apiGet, apiUpload } from "../../lib/api";
 import { formatBytes, formatDate } from "../../lib/format";
 import { appPath } from "../../lib/paths";
+import { documentsListNeedsPoll } from "../../lib/processing";
+import { useDebouncedValue } from "../../lib/useDebouncedValue";
 import {
   Button,
   DataTable,
@@ -50,16 +52,17 @@ export function DocumentsPage() {
   const [needsReview, setNeedsReview] = useState(false);
   const [search, setSearch] = useState("");
   const [uploadedFrom, setUploadedFrom] = useState("");
+  const debouncedSearch = useDebouncedValue(search, 300);
 
   const queryString = useMemo(() => {
     const params = new URLSearchParams();
     if (documentType) params.set("documentType", documentType);
     if (status) params.set("status", status);
     if (needsReview) params.set("needsReview", "true");
-    if (search) params.set("search", search);
+    if (debouncedSearch) params.set("search", debouncedSearch);
     if (uploadedFrom) params.set("uploadedFrom", new Date(uploadedFrom).toISOString());
     return params.toString();
-  }, [documentType, status, needsReview, search, uploadedFrom]);
+  }, [documentType, status, needsReview, debouncedSearch, uploadedFrom]);
 
   const query = useQuery({
     queryKey: ["documents", queryString],
@@ -67,6 +70,9 @@ export function DocumentsPage() {
       apiGet<DocumentsResponse>(
         `/api/documents${queryString ? `?${queryString}` : ""}`,
       ),
+    placeholderData: keepPreviousData,
+    refetchInterval: (q) =>
+      q.state.data && documentsListNeedsPoll(q.state.data.items) ? 3000 : false,
   });
 
   return (
@@ -218,7 +224,14 @@ export function DocumentsPage() {
               ))}
             </DataTable>
             <div className="border-t border-slate-100 px-4 py-2 text-xs text-ink-500">
-              Showing {query.data.items.length} of {query.data.total}
+              {t.common.showingOf
+                .replace("{shown}", String(query.data.items.length))
+                .replace("{total}", String(query.data.total))}
+              {documentsListNeedsPoll(query.data.items) ? (
+                <span className="ml-2 text-sky-700 dark:text-sky-400">
+                  {t.common.processingLive}
+                </span>
+              ) : null}
             </div>
           </>
         ) : null}
@@ -229,6 +242,7 @@ export function DocumentsPage() {
 
 export function DocumentUploadPage() {
   const { t } = useI18n();
+  const qc = useQueryClient();
   const [file, setFile] = useState<File | null>(null);
   const [documentType, setDocumentType] = useState("");
   const [caseId, setCaseId] = useState("");
@@ -260,6 +274,8 @@ export function DocumentUploadPage() {
         duplicateOf?: { displayName: string; documentId: string };
       }>("/api/documents", form, setProgress);
       setResult(data);
+      void qc.invalidateQueries({ queryKey: ["documents"] });
+      void qc.invalidateQueries({ queryKey: ["dashboard"] });
     } catch (err) {
       setError(
         err instanceof Error ? err.message : t.common.actionFailed,
@@ -338,7 +354,7 @@ export function DocumentUploadPage() {
             <Input
               value={caseId}
               onChange={(e) => setCaseId(e.target.value)}
-              placeholder="case_…"
+              placeholder={t.documents.caseIdPlaceholder}
             />
           </Field>
 

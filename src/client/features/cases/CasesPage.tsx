@@ -151,7 +151,7 @@ export function CasesPage() {
             <Input
               value={reference}
               onChange={(e) => setReference(e.target.value)}
-              placeholder="C2P-2026-…"
+              placeholder={t.cases.referencePlaceholder}
               required
             />
           </Field>
@@ -291,7 +291,9 @@ export function CaseDetailPage() {
     <div className="space-y-4">
       <PageHeader
         title={data.case.reference}
-        description={`Vendor ${data.case.vendor_name || t.common.none} · Tax ID ${data.case.vendor_tax_id || t.common.none}`}
+        description={t.cases.vendorLine
+          .replace("{name}", data.case.vendor_name || t.common.none)
+          .replace("{taxId}", data.case.vendor_tax_id || t.common.none)}
         backTo={appPath("/cases")}
         backLabel={t.common.backToCases}
       />
@@ -374,8 +376,12 @@ export function CaseDetailPage() {
                 </div>
                 <p className="mt-1 text-ink-500">{ex.explanation}</p>
                 <p className="mt-1 font-mono text-xs text-ink-500">
-                  expected={ex.expected_value || t.common.none} actual=
-                  {ex.actual_value || t.common.none}
+                  {t.cases.expectedActual
+                    .replace(
+                      "{expected}",
+                      ex.expected_value || t.common.none,
+                    )
+                    .replace("{actual}", ex.actual_value || t.common.none)}
                 </p>
               </li>
             ))}

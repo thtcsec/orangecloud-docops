@@ -37,6 +37,8 @@ export function DashboardPage() {
   const query = useQuery({
     queryKey: ["dashboard"],
     queryFn: () => apiGet<DashboardData>("/api/dashboard"),
+    refetchInterval: (q) =>
+      (q.state.data?.stats.processing ?? 0) > 0 ? 5000 : false,
   });
 
   if (query.isLoading) return <LoadingBlock label={t.common.loading} />;

@@ -47,17 +47,28 @@ export function ReviewPage() {
       reviewTaskId: string;
       decision: "approved" | "rejected" | "correction_requested";
       comment?: string;
+      documentId?: string | null;
+      caseId?: string | null;
     }) =>
       apiPostJson(`/api/reviews/${payload.reviewTaskId}/decision`, {
         decision: payload.decision,
         comment: payload.comment,
       }),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       setComment("");
       setSelectedId(null);
       setError(null);
-      qc.invalidateQueries({ queryKey: ["reviews"] });
-      qc.invalidateQueries({ queryKey: ["dashboard"] });
+      void qc.invalidateQueries({ queryKey: ["reviews"] });
+      void qc.invalidateQueries({ queryKey: ["dashboard"] });
+      void qc.invalidateQueries({ queryKey: ["documents"] });
+      if (variables.documentId) {
+        void qc.invalidateQueries({
+          queryKey: ["document", variables.documentId],
+        });
+      }
+      if (variables.caseId) {
+        void qc.invalidateQueries({ queryKey: ["case", variables.caseId] });
+      }
     },
     onError: (err) => {
       setError(err instanceof Error ? err.message : t.common.actionFailed);
@@ -169,6 +180,8 @@ export function ReviewPage() {
                       reviewTaskId: selected.id,
                       decision: "approved",
                       comment,
+                      documentId: selected.document_id,
+                      caseId: selected.case_id,
                     })
                   }
                   disabled={decision.isPending}
@@ -182,6 +195,8 @@ export function ReviewPage() {
                       reviewTaskId: selected.id,
                       decision: "rejected",
                       comment,
+                      documentId: selected.document_id,
+                      caseId: selected.case_id,
                     })
                   }
                   disabled={decision.isPending}
@@ -195,6 +210,8 @@ export function ReviewPage() {
                       reviewTaskId: selected.id,
                       decision: "correction_requested",
                       comment,
+                      documentId: selected.document_id,
+                      caseId: selected.case_id,
                     })
                   }
                   disabled={decision.isPending}
