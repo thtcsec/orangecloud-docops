@@ -1,6 +1,7 @@
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { apiGet } from "../lib/api";
+import { appPath } from "../lib/paths";
 import { BrandLogo } from "../components/BrandLogo";
 import {
   LanguageToggle,
@@ -31,13 +32,13 @@ export function AppShell() {
   });
 
   const nav = [
-    { to: "/dashboard", label: t.nav.dashboard },
-    { to: "/documents", label: t.nav.documents },
-    { to: "/cases", label: t.nav.cases },
-    { to: "/review", label: t.nav.review },
-    { to: "/rules", label: t.nav.rules },
-    { to: "/audit", label: t.nav.audit },
-    { to: "/settings/integrations", label: t.nav.integrations },
+    { to: appPath("/dashboard"), label: t.nav.dashboard },
+    { to: appPath("/documents"), label: t.nav.documents },
+    { to: appPath("/cases"), label: t.nav.cases },
+    { to: appPath("/review"), label: t.nav.review },
+    { to: appPath("/rules"), label: t.nav.rules },
+    { to: appPath("/audit"), label: t.nav.audit },
+    { to: appPath("/settings/integrations"), label: t.nav.integrations },
   ];
 
   return (

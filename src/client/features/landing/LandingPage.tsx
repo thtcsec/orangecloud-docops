@@ -5,10 +5,12 @@ import {
 } from "../../components/HeaderControls";
 import { SiteFooter } from "../../components/SiteFooter";
 import { useI18n } from "../../i18n";
+import { appPath } from "../../lib/paths";
 
 export function LandingPage() {
   const { t } = useI18n();
   const preview = t.landing.preview;
+  const appEntry = appPath("/dashboard");
 
   return (
     <div className="flex min-h-full flex-col">
@@ -19,7 +21,7 @@ export function LandingPage() {
             <LanguageToggle />
             <ThemeToggle />
             <a
-              href="/dashboard"
+              href={appEntry}
               className="rounded-md bg-accent-600 px-3 py-2 text-sm font-medium text-white hover:bg-accent-500"
             >
               {t.landing.ctaPrimary}
@@ -36,21 +38,20 @@ export function LandingPage() {
           />
           <div className="relative mx-auto grid max-w-5xl items-center gap-10 px-4 py-14 sm:py-20 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-accent-600">
-                {t.landing.eyebrow}
-              </p>
-              <h1 className="mt-3 max-w-xl text-4xl font-semibold tracking-tight text-ink-950 sm:text-5xl">
+              <h1 className="max-w-xl text-4xl font-semibold tracking-tight text-ink-950 sm:text-5xl">
                 {t.brand.name}
               </h1>
-              <p className="mt-4 max-w-xl text-lg text-ink-700">
+              <p className="mt-4 max-w-xl text-xl font-medium leading-snug text-ink-800 sm:text-2xl">
                 {t.landing.title}
               </p>
-              <p className="mt-3 max-w-xl text-sm leading-relaxed text-ink-500">
-                {t.landing.subtitle}
-              </p>
+              <div className="mt-5 max-w-xl space-y-3 text-sm leading-relaxed text-ink-500">
+                {t.landing.story.map((paragraph) => (
+                  <p key={paragraph}>{paragraph}</p>
+                ))}
+              </div>
               <div className="mt-8 flex flex-wrap gap-3">
                 <a
-                  href="/dashboard"
+                  href={appEntry}
                   className="rounded-md bg-accent-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-accent-500"
                 >
                   {t.landing.ctaPrimary}
@@ -113,9 +114,11 @@ export function LandingPage() {
             <h2 className="text-sm font-semibold text-ink-950">
               {t.landing.whatTitle}
             </h2>
-            <p className="mt-2 text-sm leading-relaxed text-ink-500">
-              {t.landing.whatBody}
-            </p>
+            <div className="mt-2 space-y-2 text-sm leading-relaxed text-ink-500">
+              {t.landing.whatBody.map((paragraph) => (
+                <p key={paragraph}>{paragraph}</p>
+              ))}
+            </div>
           </article>
           <article className="rounded-lg border border-slate-200/80 bg-white/90 p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900/70">
             <h2 className="text-sm font-semibold text-ink-950">
@@ -137,13 +140,13 @@ export function LandingPage() {
             <ol className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
               {t.landing.flowItems.map((item, index) => (
                 <li
-                  key={item}
-                  className="rounded-md border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-ink-700 dark:border-slate-700 dark:bg-slate-900"
+                  key={item.title}
+                  className="rounded-md border border-slate-200 bg-slate-50 px-3 py-3 text-sm dark:border-slate-700 dark:bg-slate-900"
                 >
                   <div className="font-mono text-xs text-accent-600">
-                    {String(index + 1).padStart(2, "0")}
+                    {String(index + 1).padStart(2, "0")} — {item.title}
                   </div>
-                  <p className="mt-1">{item}</p>
+                  <p className="mt-1.5 text-ink-700">{item.body}</p>
                 </li>
               ))}
             </ol>

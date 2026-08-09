@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { apiGet, apiPostJson } from "../../lib/api";
 import { formatDate } from "../../lib/format";
+import { appPath } from "../../lib/paths";
 import {
   Button,
   EmptyState,
@@ -135,7 +136,7 @@ export function ReviewPage() {
                 {selected.document_id ? (
                   <Link
                     className="font-medium text-accent-600 hover:underline"
-                    to={`/documents/${selected.document_id}`}
+                    to={appPath(`/documents/${selected.document_id}`)}
                   >
                     {t.review.openDocument}
                   </Link>
@@ -143,7 +144,7 @@ export function ReviewPage() {
                 {selected.case_id ? (
                   <Link
                     className="font-medium text-accent-600 hover:underline"
-                    to={`/cases/${selected.case_id}`}
+                    to={appPath(`/cases/${selected.case_id}`)}
                   >
                     {t.review.openCase}
                   </Link>

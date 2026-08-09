@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 import { apiGet, apiPostJson } from "../../lib/api";
 import { formatBytes, formatDate } from "../../lib/format";
+import { appPath } from "../../lib/paths";
 import {
   Button,
   EmptyState,
@@ -101,7 +102,7 @@ export function DocumentDetailPage() {
     return (
       <QueryErrorState
         title={t.nav.documents}
-        backTo="/documents"
+        backTo={appPath("/documents")}
         backLabel={t.common.backToDocuments}
         message={
           (query.error as Error).message || t.common.loadFailed
@@ -118,7 +119,7 @@ export function DocumentDetailPage() {
       <PageHeader
         title={data.document.display_name}
         description={`${data.document.document_type} · ${data.document.id}`}
-        backTo="/documents"
+        backTo={appPath("/documents")}
         backLabel={t.common.backToDocuments}
         actions={
           <>
@@ -173,7 +174,7 @@ export function DocumentDetailPage() {
                 {data.document.case_id ? (
                   <Link
                     className="text-accent-600 hover:underline"
-                    to={`/cases/${data.document.case_id}`}
+                    to={appPath(`/cases/${data.document.case_id}`)}
                   >
                     {t.documentDetail.openCase}
                   </Link>

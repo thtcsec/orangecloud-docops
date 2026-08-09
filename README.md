@@ -81,7 +81,7 @@ npm run dev
 Open `http://localhost:5173/`
 
 - Landing: `/`
-- App: `/dashboard`
+- App: `/app/dashboard`
 - Language switcher: header (VI / EN)
 
 Local auth is explicit and only active when:

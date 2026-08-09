@@ -60,38 +60,26 @@ DNS / zone must live on the same Cloudflare account. Do not overwrite incompatib
 
 Staging/production **refuse** authenticated API use until secrets exist (`readiness.accessConfigured` on `/api/health`).
 
-**Do not add one destination per route** — Free/standard Access apps allow **only 5 destinations**. Listing `dashboard*`, `documents*`, … will hit the cap before you cover `api*`.
+Ops UI lives under **`/app/*`**. Public marketing stays at `/` and `/privacy`.
 
-#### Recommended: protect whole host + Bypass public paths
+#### Recommended Application (production)
 
-**App A — DocOps (Allow)**  
-- Destination: `docops` + `orangecloud.vn` + **path empty** (whole hostname)  
-- Policy: **Allow** your team emails / IdP groups  
+One Access app, **two destinations only**:
 
-**App B — DocOps public (Bypass)** — more specific paths win over App A:
+| Subdomain | Domain | Path | Policy |
+|-----------|--------|------|--------|
+| `docops` | `orangecloud.vn` | `app*` | **Allow** (team emails / IdP) |
+| `docops` | `orangecloud.vn` | `api*` | **Allow** (same policy) |
 
-| Subdomain | Domain | Path |
-|-----------|--------|------|
-| `docops` | `orangecloud.vn` | `/` (or leave path as exact root if UI requires) |
-| `docops` | `orangecloud.vn` | `privacy*` |
-| `docops` | `orangecloud.vn` | `assets*` |
-| `docops` | `orangecloud.vn` | `illustrations*` |
+Leave public (no Access destination): `/`, `/privacy`, `/assets*`, `/illustrations*`.
 
-- Policy on App B: **Bypass** → Include → **Everyone**
-
-Landing + static assets stay public; `/dashboard`, `/api`, … stay behind Allow. Same AUD on App A is what the Worker validates (`CF_ACCESS_AUD`).
-
-#### Alternative (code change): mount ops UI under `/app/*`
-
-Then App A only needs **2** destinations: `app*` + `api*`. Landing `/` stays public with no Bypass app. Ask if you want this refactor.
-
-Landing CTA uses a full navigation to `/dashboard` so Access can show the login wall.
+Landing CTA is a full navigation to `/app/dashboard` so Access can show the login wall. Old paths like `/dashboard` redirect into `/app/...`.
 
 Repeat for staging (`docops-stg…`) when you enable Access there.
 
 #### Secrets
 
-1. Copy Application Audience (AUD) from **App A** + team name (`cloudspacevn`).
+1. Copy Application Audience (AUD) + team name (`cloudspacevn`).
 2. Put secrets:
 
 ```powershell

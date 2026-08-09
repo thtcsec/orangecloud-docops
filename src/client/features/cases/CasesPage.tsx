@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 import { apiGet, apiPostJson } from "../../lib/api";
 import { formatDate } from "../../lib/format";
+import { appPath } from "../../lib/paths";
 import {
   Button,
   EmptyState,
@@ -176,7 +177,7 @@ export function CasesPage() {
           {createdCaseId ? (
             <SoftBanner tone="ok">
               {t.cases.createSuccess}{" "}
-              <Link className="font-medium text-accent-700" to={`/cases/${createdCaseId}`}>
+              <Link className="font-medium text-accent-700" to={appPath(`/cases/${createdCaseId}`)}>
                 {createdCaseId}
               </Link>
               . {t.cases.createUploadHint}
@@ -240,7 +241,7 @@ export function CasesPage() {
                 <td className="px-4 py-3">
                   <Link
                     className="text-sm font-medium text-accent-600"
-                    to={`/cases/${item.id}`}
+                    to={appPath(`/cases/${item.id}`)}
                   >
                     {t.common.open}
                   </Link>
@@ -268,7 +269,7 @@ export function CaseDetailPage() {
     return (
       <QueryErrorState
         title={t.cases.title}
-        backTo="/cases"
+        backTo={appPath("/cases")}
         backLabel={t.common.backToCases}
         message={(query.error as Error).message || t.common.loadFailed}
         onRetry={() => void query.refetch()}
@@ -291,7 +292,7 @@ export function CaseDetailPage() {
       <PageHeader
         title={data.case.reference}
         description={`Vendor ${data.case.vendor_name || t.common.none} · Tax ID ${data.case.vendor_tax_id || t.common.none}`}
-        backTo="/cases"
+        backTo={appPath("/cases")}
         backLabel={t.common.backToCases}
       />
 
@@ -345,7 +346,7 @@ export function CaseDetailPage() {
                   <StatusBadge status={link.document.status} />
                   <Link
                     className="text-accent-600"
-                    to={`/documents/${link.document.id}`}
+                    to={appPath(`/documents/${link.document.id}`)}
                   >
                     {t.common.open}
                   </Link>
@@ -396,7 +397,7 @@ export function CaseDetailPage() {
                 <li key={task.id} className="px-4 py-3 text-sm">
                   <StatusBadge status={task.status} />
                   <div className="mt-1">{task.reason}</div>
-                  <Link className="text-accent-600" to="/review">
+                  <Link className="text-accent-600" to={appPath("/review")}>
                     {t.cases.openReview}
                   </Link>
                 </li>

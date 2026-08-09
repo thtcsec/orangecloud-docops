@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { DOCUMENT_STATUSES, DOCUMENT_TYPES } from "@shared/domain";
 import { apiGet, apiUpload } from "../../lib/api";
 import { formatBytes, formatDate } from "../../lib/format";
+import { appPath } from "../../lib/paths";
 import {
   Button,
   DataTable,
@@ -75,7 +76,7 @@ export function DocumentsPage() {
         description={t.documents.description}
         actions={
           <Link
-            to="/documents/upload"
+            to={appPath("/documents/upload")}
             className="rounded-md bg-accent-600 px-3 py-2 text-sm font-medium text-white"
           >
             {t.common.upload}
@@ -151,7 +152,7 @@ export function DocumentsPage() {
             title={t.documents.emptyTitle}
             description={t.documents.emptyBody}
             action={
-              <Link to="/documents/upload" className="text-sm text-accent-600">
+              <Link to={appPath("/documents/upload")} className="text-sm text-accent-600">
                 {t.documents.submit}
               </Link>
             }
@@ -197,7 +198,7 @@ export function DocumentsPage() {
                     {doc.case_id ? (
                       <Link
                         className="text-accent-600 hover:underline"
-                        to={`/cases/${doc.case_id}`}
+                        to={appPath(`/cases/${doc.case_id}`)}
                       >
                         {doc.case_id.slice(0, 12)}…
                       </Link>
@@ -207,7 +208,7 @@ export function DocumentsPage() {
                   </td>
                   <td className="px-4 py-3">
                     <Link
-                      to={`/documents/${doc.id}`}
+                      to={appPath(`/documents/${doc.id}`)}
                       className="text-sm font-medium text-accent-600 hover:underline"
                     >
                       {t.common.open}
@@ -280,7 +281,7 @@ export function DocumentUploadPage() {
       <PageHeader
         title={t.documents.uploadTitle}
         description={t.documents.uploadDescription}
-        backTo="/documents"
+        backTo={appPath("/documents")}
         backLabel={t.common.backToDocuments}
       />
       <Panel className="max-w-2xl p-4">
@@ -368,7 +369,7 @@ export function DocumentUploadPage() {
               {t.documents.uploadAccepted}{" "}
               <Link
                 className="font-medium underline"
-                to={`/documents/${result.documentId}`}
+                to={appPath(`/documents/${result.documentId}`)}
               >
                 {t.documents.openDocument}
               </Link>

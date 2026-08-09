@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { apiGet } from "../../lib/api";
 import { formatDate } from "../../lib/format";
+import { appPath } from "../../lib/paths";
 import {
   EmptyState,
   LoadingBlock,
@@ -72,7 +73,7 @@ export function DashboardPage() {
               description={t.dashboard.description}
               actions={
                 <Link
-                  to="/documents/upload"
+                  to={appPath("/documents/upload")}
                   className="rounded-md bg-accent-600 px-3.5 py-2.5 text-[0.95rem] font-medium text-white transition hover:bg-accent-500"
                 >
                   {t.dashboard.upload}
@@ -117,7 +118,7 @@ export function DashboardPage() {
               description={t.dashboard.emptyBody}
               action={
                 <Link
-                  to="/documents/upload"
+                  to={appPath("/documents/upload")}
                   className="text-base font-medium text-accent-600 hover:underline"
                 >
                   {t.dashboard.goUpload}
