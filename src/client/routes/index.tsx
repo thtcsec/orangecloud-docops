@@ -13,6 +13,7 @@ import { ReviewPage } from "../features/review/ReviewPage";
 import { RulesPage } from "../features/rules/RulesPage";
 import { AuditPage } from "../features/audit/AuditPage";
 import { IntegrationsPage } from "../features/integrations/IntegrationsPage";
+import { ProfilePage } from "../features/settings/ProfilePage";
 import { PrivacyPage } from "../features/privacy/PrivacyPage";
 import { useI18n } from "../i18n";
 import { APP_BASE, LEGACY_APP_SEGMENTS } from "../lib/paths";
@@ -52,6 +53,7 @@ export function AppRoutes() {
         <Route path="rules" element={<RulesPage />} />
         <Route path="audit" element={<AuditPage />} />
         <Route path="settings/integrations" element={<IntegrationsPage />} />
+        <Route path="settings/profile" element={<ProfilePage />} />
       </Route>
 
       {LEGACY_APP_SEGMENTS.map((segment) => (

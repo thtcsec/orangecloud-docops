@@ -163,6 +163,9 @@ export const vi: TranslationSchema = {
   },
   roles: {
     profileTitle: "Tài khoản",
+    profileDescription: "Thông tin tài khoản và vai trò trong tổ chức.",
+    viewProfile: "Xem hồ sơ",
+    organizationLabel: "ID tổ chức",
     roleLabel: "Vai trò",
     signInLabel: "Đăng nhập qua",
     authAccess: "Cloudflare Access",

@@ -1,4 +1,6 @@
+import { Link } from "react-router-dom";
 import { useEffect, useId, useRef, useState } from "react";
+import { appPath } from "../lib/paths";
 import { useI18n } from "../i18n";
 
 type SessionUser = {
@@ -25,11 +27,7 @@ export function UserMenu({ user }: { user: SessionUser }) {
 
   const roleKey = user.role as keyof typeof t.roles.labels;
   const roleLabel = t.roles.labels[roleKey] || user.role;
-  const roleSummary = t.roles.summaries[roleKey] || t.roles.summaries.viewer;
-  const authLabel =
-    user.authSource === "cloudflare_access"
-      ? t.roles.authAccess
-      : t.roles.authLocal;
+  const isAdmin = user.role === "admin";
 
   useEffect(() => {
     if (!open) return;
@@ -78,43 +76,40 @@ export function UserMenu({ user }: { user: SessionUser }) {
       {open ? (
         <div
           id={menuId}
-          role="dialog"
+          role="menu"
           aria-label={t.roles.profileTitle}
-          className="absolute right-0 z-[60] mt-2 w-[320px] rounded-lg border border-slate-200 bg-white p-4 shadow-xl ring-1 ring-black/5 dark:border-slate-600 dark:bg-slate-950 dark:ring-white/10"
+          className="absolute right-0 z-[60] mt-2 w-[280px] rounded-lg border border-slate-200 bg-white p-3 shadow-xl ring-1 ring-black/5 dark:border-slate-600 dark:bg-slate-950 dark:ring-white/10"
         >
-          <div className="flex items-start gap-3">
+          <div className="flex items-start gap-3 px-1 py-1">
             <span
-              className="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent-600 text-sm font-semibold text-white"
+              className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent-600 text-xs font-semibold text-white"
               aria-hidden
             >
               {initials(user.displayName, user.email)}
             </span>
             <div className="min-w-0">
-              <div className="truncate font-semibold text-ink-950">
+              <div className="truncate text-sm font-semibold text-ink-950">
                 {user.displayName}
               </div>
-              <div className="truncate text-sm text-ink-500">{user.email}</div>
+              <div className="truncate text-xs text-ink-500">{user.email}</div>
+              <div className="mt-1 text-xs font-medium text-ink-700">
+                {roleLabel}
+              </div>
             </div>
           </div>
 
-          <div className="mt-4 space-y-3 border-t border-slate-100 pt-3 text-sm dark:border-slate-800">
-            <div>
-              <div className="text-xs font-semibold uppercase tracking-wide text-ink-500">
-                {t.roles.roleLabel}
-              </div>
-              <div className="mt-1 font-medium text-ink-900">{roleLabel}</div>
-              <p className="mt-1 text-ink-500">{roleSummary}</p>
+          {isAdmin ? (
+            <div className="mt-3 border-t border-slate-100 pt-2 dark:border-slate-800">
+              <Link
+                to={appPath("/settings/profile")}
+                role="menuitem"
+                className="block rounded-md px-2 py-2 text-sm font-medium text-accent-700 hover:bg-accent-50 dark:text-accent-400 dark:hover:bg-slate-900"
+                onClick={() => setOpen(false)}
+              >
+                {t.roles.viewProfile}
+              </Link>
             </div>
-            <div>
-              <div className="text-xs font-semibold uppercase tracking-wide text-ink-500">
-                {t.roles.signInLabel}
-              </div>
-              <div className="mt-1 text-ink-800">{authLabel}</div>
-            </div>
-            <p className="text-xs leading-relaxed text-ink-500">
-              {t.roles.manageHint}
-            </p>
-          </div>
+          ) : null}
         </div>
       ) : null}
     </div>

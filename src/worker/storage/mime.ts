@@ -25,7 +25,11 @@ export function validateMimeAndExtension(
     (typeof ALLOWED_UPLOADS)[AllowedKind],
   ][]) {
     const extOk = (spec.extensions as readonly string[]).includes(ext);
-    const mimeOk = (spec.mimeTypes as readonly string[]).includes(mime);
+    const mimeOk =
+      (spec.mimeTypes as readonly string[]).includes(mime) ||
+      // Browsers sometimes send a generic MIME for local files.
+      mime === "" ||
+      mime === "application/octet-stream";
     if (extOk && mimeOk) {
       return { ok: true, kind };
     }
@@ -41,6 +45,6 @@ export function validateMimeAndExtension(
   return {
     ok: false,
     code: "UNSUPPORTED_FILE_TYPE",
-    message: "Only PDF and XML uploads are supported in Phase 1",
+    message: "Only PDF and XML uploads are supported",
   };
 }

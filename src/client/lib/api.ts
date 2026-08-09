@@ -74,8 +74,23 @@ export async function apiUpload<T>(
       }
     };
     xhr.onload = () => {
+      const ct = xhr.getResponseHeader("content-type") || "";
+      const body = xhr.responseText || "";
+      // Access challenge / SPA HTML after redirect — re-auth instead of cryptic JSON parse errors.
+      if (
+        ct.includes("text/html") ||
+        body.trimStart().startsWith("<!DOCTYPE") ||
+        body.trimStart().startsWith("<html")
+      ) {
+        try {
+          kickAccessLogin();
+        } catch (err) {
+          reject(err);
+        }
+        return;
+      }
       try {
-        const json = JSON.parse(xhr.responseText) as ApiResponse<T>;
+        const json = JSON.parse(body) as ApiResponse<T>;
         if (!json.ok) {
           reject(
             new ApiError(
@@ -88,8 +103,14 @@ export async function apiUpload<T>(
           return;
         }
         resolve(json.data);
-      } catch (err) {
-        reject(err);
+      } catch {
+        reject(
+          new ApiError(
+            xhr.status || 0,
+            "INVALID_RESPONSE",
+            "Upload failed: server did not return JSON. Sign in again and retry.",
+          ),
+        );
       }
     };
     xhr.onerror = () => reject(new ApiError(0, "NETWORK_ERROR", "Network error"));

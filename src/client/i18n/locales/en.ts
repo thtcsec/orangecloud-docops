@@ -160,6 +160,9 @@ export const en = {
   },
   roles: {
     profileTitle: "Account",
+    profileDescription: "Account and role details for this organization.",
+    viewProfile: "View profile",
+    organizationLabel: "Organization ID",
     roleLabel: "Role",
     signInLabel: "Signed in with",
     authAccess: "Cloudflare Access",
