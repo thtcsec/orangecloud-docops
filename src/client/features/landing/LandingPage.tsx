@@ -8,6 +8,7 @@ import { useI18n } from "../../i18n";
 
 export function LandingPage() {
   const { t } = useI18n();
+  const preview = t.landing.preview;
 
   return (
     <div className="flex min-h-full flex-col">
@@ -33,33 +34,77 @@ export function LandingPage() {
             aria-hidden
             className="pointer-events-none absolute inset-0 bg-[radial-gradient(900px_420px_at_10%_-20%,#ffedd5_0%,transparent_55%),linear-gradient(180deg,#fffaf5_0%,#f8fafc_70%)] dark:bg-[radial-gradient(900px_420px_at_10%_-20%,#431407_0%,transparent_50%),linear-gradient(180deg,#0b1220_0%,#111827_70%)]"
           />
-          <div className="relative mx-auto max-w-5xl px-4 py-16 sm:py-20">
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-accent-600">
-              {t.landing.eyebrow}
-            </p>
-            <h1 className="mt-3 max-w-3xl text-4xl font-semibold tracking-tight text-ink-950 sm:text-5xl">
-              {t.brand.name}
-            </h1>
-            <p className="mt-4 max-w-2xl text-lg text-ink-700">
-              {t.landing.title}
-            </p>
-            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-ink-500">
-              {t.landing.subtitle}
-            </p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <a
-                href="/dashboard"
-                className="rounded-md bg-accent-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-accent-500"
-              >
-                {t.landing.ctaPrimary}
-              </a>
-              <a
-                href="https://github.com/thtcsec/orangecloud-docops/blob/master/docs/ARCHITECTURE.md"
-                className="rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-ink-800 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800"
-              >
-                {t.landing.ctaSecondary}
-              </a>
+          <div className="relative mx-auto grid max-w-5xl items-center gap-10 px-4 py-14 sm:py-20 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-accent-600">
+                {t.landing.eyebrow}
+              </p>
+              <h1 className="mt-3 max-w-xl text-4xl font-semibold tracking-tight text-ink-950 sm:text-5xl">
+                {t.brand.name}
+              </h1>
+              <p className="mt-4 max-w-xl text-lg text-ink-700">
+                {t.landing.title}
+              </p>
+              <p className="mt-3 max-w-xl text-sm leading-relaxed text-ink-500">
+                {t.landing.subtitle}
+              </p>
+              <div className="mt-8 flex flex-wrap gap-3">
+                <a
+                  href="/dashboard"
+                  className="rounded-md bg-accent-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-accent-500"
+                >
+                  {t.landing.ctaPrimary}
+                </a>
+                <a
+                  href="https://github.com/thtcsec/orangecloud-docops/blob/master/docs/ARCHITECTURE.md"
+                  className="rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-ink-800 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800"
+                >
+                  {t.landing.ctaSecondary}
+                </a>
+              </div>
             </div>
+
+            <aside
+              className="animate-fade-in overflow-hidden rounded-xl border border-slate-800/80 bg-[#0b1220] text-slate-100 shadow-[0_24px_60px_-28px_rgba(15,23,42,0.55)]"
+              aria-label={preview.label}
+            >
+              <div className="flex items-center justify-between border-b border-white/10 px-4 py-2.5">
+                <span className="font-mono text-[11px] tracking-wide text-slate-400">
+                  {preview.label}
+                </span>
+                <span className="rounded bg-accent-500/15 px-2 py-0.5 font-mono text-[10px] font-semibold text-accent-400">
+                  {preview.badge}
+                </span>
+              </div>
+              <div className="space-y-3 px-4 py-4 font-mono text-[12px] leading-relaxed">
+                <p className="text-slate-400">
+                  <span className="text-accent-400">$</span> {preview.command}
+                </p>
+                <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-slate-300">
+                  <dt className="text-slate-500">{preview.doc}</dt>
+                  <dd className="truncate text-slate-100">{preview.docValue}</dd>
+                  <dt className="text-slate-500">{preview.case}</dt>
+                  <dd className="text-slate-100">{preview.caseValue}</dd>
+                  <dt className="text-slate-500">{preview.extract}</dt>
+                  <dd>
+                    <span className="text-emerald-400">{preview.extractValue}</span>
+                  </dd>
+                  <dt className="text-slate-500">{preview.rules}</dt>
+                  <dd>
+                    <span className="text-amber-300">{preview.rulesValue}</span>
+                  </dd>
+                  <dt className="text-slate-500">{preview.status}</dt>
+                  <dd>
+                    <span className="font-semibold text-accent-400">
+                      {preview.statusValue}
+                    </span>
+                  </dd>
+                </dl>
+                <p className="border-t border-white/10 pt-3 text-slate-400">
+                  {preview.footer}
+                </p>
+              </div>
+            </aside>
           </div>
         </section>
 

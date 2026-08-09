@@ -60,34 +60,38 @@ DNS / zone must live on the same Cloudflare account. Do not overwrite incompatib
 
 Staging/production **refuse** authenticated API use until secrets exist (`readiness.accessConfigured` on `/api/health`).
 
-**Do not protect the whole hostname.** Landing `/` and `/privacy` stay public; only the ops app + API sit behind Access.
+**Do not add one destination per route** — Free/standard Access apps allow **only 5 destinations**. Listing `dashboard*`, `documents*`, … will hit the cap before you cover `api*`.
 
-#### Recommended Application paths (production)
+#### Recommended: protect whole host + Bypass public paths
 
-Zero Trust → Access controls → Applications → edit the `docops.orangecloud.vn` app.
+**App A — DocOps (Allow)**  
+- Destination: `docops` + `orangecloud.vn` + **path empty** (whole hostname)  
+- Policy: **Allow** your team emails / IdP groups  
 
-Replace a bare hostname destination (`docops.orangecloud.vn` with empty path) with **path-scoped** public hostnames (same AUD / policies):
+**App B — DocOps public (Bypass)** — more specific paths win over App A:
 
-| Domain | Path |
-|--------|------|
-| `docops.orangecloud.vn` | `dashboard*` |
-| `docops.orangecloud.vn` | `documents*` |
-| `docops.orangecloud.vn` | `cases*` |
-| `docops.orangecloud.vn` | `review*` |
-| `docops.orangecloud.vn` | `rules*` |
-| `docops.orangecloud.vn` | `audit*` |
-| `docops.orangecloud.vn` | `settings*` |
-| `docops.orangecloud.vn` | `api*` |
+| Subdomain | Domain | Path |
+|-----------|--------|------|
+| `docops` | `orangecloud.vn` | `/` (or leave path as exact root if UI requires) |
+| `docops` | `orangecloud.vn` | `privacy*` |
+| `docops` | `orangecloud.vn` | `assets*` |
+| `docops` | `orangecloud.vn` | `illustrations*` |
 
-Leave **public** (no Access app covering them): `/`, `/privacy`, `/assets/*`, illustrations, and other static assets.
+- Policy on App B: **Bypass** → Include → **Everyone**
 
-Landing CTA uses a full navigation to `/dashboard` so Access can show the login wall (SPA client routing alone would skip Access).
+Landing + static assets stay public; `/dashboard`, `/api`, … stay behind Allow. Same AUD on App A is what the Worker validates (`CF_ACCESS_AUD`).
 
-Repeat the same path pattern for staging (`docops-stg.orangecloud.vn`) when you enable Access there.
+#### Alternative (code change): mount ops UI under `/app/*`
+
+Then App A only needs **2** destinations: `app*` + `api*`. Landing `/` stays public with no Bypass app. Ask if you want this refactor.
+
+Landing CTA uses a full navigation to `/dashboard` so Access can show the login wall.
+
+Repeat for staging (`docops-stg…`) when you enable Access there.
 
 #### Secrets
 
-1. Copy Application Audience (AUD) + team name (`cloudspacevn`).
+1. Copy Application Audience (AUD) from **App A** + team name (`cloudspacevn`).
 2. Put secrets:
 
 ```powershell
