@@ -36,8 +36,15 @@ export function createApp() {
   );
 
   const api = new Hono<{ Bindings: Env; Variables: AppVariables }>();
-  api.use("*", apiRateLimit);
+  // Health stays outside the API rate limiter so probes stay reliable.
   api.route("/", healthRoutes);
+  api.use("*", async (c, next) => {
+    if (c.req.path === "/health" || c.req.path.endsWith("/health")) {
+      await next();
+      return;
+    }
+    return apiRateLimit(c, next);
+  });
   api.route("/", sessionRoutes);
   api.route("/", dashboardRoutes);
   api.route("/", documentRoutes);

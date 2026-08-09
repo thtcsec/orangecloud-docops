@@ -64,14 +64,17 @@ Ops UI lives under **`/app/*`**. Public marketing stays at `/` and `/privacy`.
 
 #### Recommended Application (production)
 
-One Access app, **two destinations only**:
+One Access app, **two protect destinations** (+ health bypass for probes):
 
 | Subdomain | Domain | Path | Policy |
 |-----------|--------|------|--------|
 | `docops` | `orangecloud.vn` | `app*` | **Allow** (team emails / IdP) |
 | `docops` | `orangecloud.vn` | `api*` | **Allow** (same policy) |
+| `docops` | `orangecloud.vn` | `/api/health` | **Bypass** (higher priority than `api*`) |
 
 Leave public (no Access destination): `/`, `/privacy`, `/assets*`, `/illustrations*`.
+
+Without the Bypass row, `/api/health` returns the Access login HTML instead of JSON — fine for browsers, broken for uptime monitors.
 
 Landing CTA is a full navigation to `/app/dashboard` so Access can show the login wall. Old paths like `/dashboard` redirect into `/app/...`.
 
@@ -106,10 +109,28 @@ npx wrangler secret put CF_ACCESS_TEAM_DOMAIN --env production
 - Local auth disabled outside `ENVIRONMENT=local`
 - Strict CORS to `APP_BASE_URL` on staging/prod
 - Security headers (CSP, HSTS, frame deny, nosniff, …)
-- Workers Rate Limiting bindings on API + upload
+- Workers Rate Limiting bindings on API + upload (`Retry-After` on 429)
+- Access JWKS cached (isolate memory + Cache API, 10m TTL)
+- Additive D1 indexes for hot list / duplicate / audit queries
+- `/api/health` probes D1 with `SELECT 1` (returns 503 when degraded)
+- Request timing via `x-response-time` + structured `request_completed` logs
 - Observability enabled
 - Queue retries + DLQ
 - Fail-closed when Access secrets missing
+
+### Queue DLQ triage
+
+Failed processing messages land on:
+
+- staging: `orangecloud-docops-processing-dlq-stg`
+- production: `orangecloud-docops-processing-dlq-prod`
+
+When DLQ depth grows:
+
+1. Check Worker logs for `queue` / `workflow` errors (`requestId`, `documentId`).
+2. Confirm D1 migrations applied (`npm run db:migrate:production`).
+3. Reprocess from the document detail UI (`Run again`) after the root cause is fixed.
+4. Do not purge DLQ blindly — messages are metadata-only but still needed for forensics.
 
 ### Workers AI
 
@@ -124,13 +145,15 @@ npm run db:migrate:staging
 npm run db:migrate:production
 ```
 
+Always migrate **before or immediately after** deploying schema-dependent Worker changes.
+
 ## Validation
 
 ```bash
 npm run ci
 ```
 
-`/api/health` returns `readiness` for bindings + Access.
+`/api/health` returns `readiness` for bindings + Access. Prefer HTTP 200 + `status: "ok"`; `503` + `status: "degraded"` means a binding probe failed (often D1).
 
 ## Deployment
 
@@ -138,12 +161,14 @@ Staging:
 
 ```bash
 npm run deploy:staging
+npm run db:migrate:staging
 ```
 
 Production (manual only):
 
 ```bash
 npm run deploy:production
+npm run db:migrate:production
 ```
 
 `workers_dev` is disabled for staging and production.

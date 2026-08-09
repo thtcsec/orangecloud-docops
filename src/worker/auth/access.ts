@@ -2,9 +2,22 @@ import type { UserRole } from "@shared/domain";
 import { USER_ROLES } from "@shared/domain";
 import { createId, nowIso } from "../utils/id";
 import { ensureDefaultOrganization } from "../db/repositories/organizations";
+import type { OrganizationRow } from "../db/schema/types";
 import { findUserByEmail, upsertLocalUser } from "../db/repositories/users";
 import type { AppPrincipal } from "./principal";
 import { logger } from "../utils/logger";
+
+const JWKS_CACHE_TTL_SECONDS = 600;
+const JWT_CLOCK_SKEW_MS = 60_000;
+
+/** Isolate-local cache for the bootstrap org (stable per Worker isolate). */
+let cachedDefaultOrg: OrganizationRow | null = null;
+
+type JwksPayload = { keys: Array<JsonWebKey & { kid?: string }> };
+type CachedJwks = { fetchedAt: number; keys: JwksPayload["keys"] };
+
+/** Isolate-local JWKS cache; Cache API used when available. */
+const jwksMemory = new Map<string, CachedJwks>();
 
 function isLocalAuthEnabled(env: Env): boolean {
   return (
@@ -20,6 +33,17 @@ function parseRole(value: string | undefined): UserRole {
   return "viewer";
 }
 
+async function getDefaultOrg(env: Env, now: string): Promise<OrganizationRow> {
+  if (cachedDefaultOrg) return cachedDefaultOrg;
+  cachedDefaultOrg = await ensureDefaultOrganization(env.DOCOPS_DB, {
+    id: createId("org"),
+    name: "OrangeCloud Demo Org",
+    slug: "orangecloud-demo",
+    now,
+  });
+  return cachedDefaultOrg;
+}
+
 /**
  * Validate Cloudflare Access JWT when configured.
  * Local development uses an explicit, clearly named bypass that is disabled outside local.
@@ -28,14 +52,8 @@ export async function resolvePrincipal(
   request: Request,
   env: Env,
 ): Promise<AppPrincipal | null> {
-  const db = env.DOCOPS_DB;
   const now = nowIso();
-  const org = await ensureDefaultOrganization(db, {
-    id: createId("org"),
-    name: "OrangeCloud Demo Org",
-    slug: "orangecloud-demo",
-    now,
-  });
+  const org = await getDefaultOrg(env, now);
 
   if (isLocalAuthEnabled(env)) {
     const email =
@@ -54,7 +72,7 @@ export async function resolvePrincipal(
       env.LOCAL_DEV_AUTH_DISPLAY_NAME ||
       request.headers.get("x-docops-dev-name") ||
       email;
-    const user = await upsertLocalUser(db, {
+    const user = await upsertLocalUser(env.DOCOPS_DB, {
       id: createId("usr"),
       organizationId: org.id,
       email,
@@ -106,7 +124,7 @@ export async function resolvePrincipal(
     return null;
   }
 
-  let user = await findUserByEmail(db, org.id, identity.email);
+  let user = await findUserByEmail(env.DOCOPS_DB, org.id, identity.email);
   if (!user) {
     const bootstrap = (env.BOOTSTRAP_ADMIN_EMAILS || "")
       .split(",")
@@ -115,7 +133,7 @@ export async function resolvePrincipal(
     const role: UserRole = bootstrap.includes(identity.email.toLowerCase())
       ? "admin"
       : "viewer";
-    user = await upsertLocalUser(db, {
+    user = await upsertLocalUser(env.DOCOPS_DB, {
       id: createId("usr"),
       organizationId: org.id,
       email: identity.email,
@@ -132,7 +150,7 @@ export async function resolvePrincipal(
       .includes(identity.email.toLowerCase())
   ) {
     // Elevate pre-seeded / first-login viewer listed as bootstrap admin.
-    user = await upsertLocalUser(db, {
+    user = await upsertLocalUser(env.DOCOPS_DB, {
       id: user.id,
       organizationId: org.id,
       email: user.email,
@@ -188,6 +206,58 @@ function base64UrlToJson<T>(input: string): T {
   return JSON.parse(new TextDecoder().decode(base64UrlToBytes(input))) as T;
 }
 
+async function loadJwks(certsUrl: string): Promise<JwksPayload["keys"]> {
+  const memory = jwksMemory.get(certsUrl);
+  if (memory && Date.now() - memory.fetchedAt < JWKS_CACHE_TTL_SECONDS * 1000) {
+    return memory.keys;
+  }
+
+  try {
+    const cacheKey = new Request(certsUrl, { method: "GET" });
+    const cached = await caches.default.match(cacheKey);
+    if (cached?.ok) {
+      const payload = (await cached.json()) as JwksPayload;
+      if (Array.isArray(payload.keys)) {
+        jwksMemory.set(certsUrl, {
+          fetchedAt: Date.now(),
+          keys: payload.keys,
+        });
+        return payload.keys;
+      }
+    }
+  } catch {
+    // Cache API may be unavailable in some test runtimes — fall through.
+  }
+
+  const certsResp = await fetch(certsUrl);
+  if (!certsResp.ok) {
+    throw new Error(`JWKS HTTP ${certsResp.status}`);
+  }
+  const payload = (await certsResp.json()) as JwksPayload;
+  if (!Array.isArray(payload.keys)) {
+    throw new Error("JWKS missing keys");
+  }
+
+  jwksMemory.set(certsUrl, { fetchedAt: Date.now(), keys: payload.keys });
+
+  try {
+    const cacheKey = new Request(certsUrl, { method: "GET" });
+    await caches.default.put(
+      cacheKey,
+      new Response(JSON.stringify(payload), {
+        headers: {
+          "content-type": "application/json",
+          "cache-control": `public, max-age=${JWKS_CACHE_TTL_SECONDS}`,
+        },
+      }),
+    );
+  } catch {
+    // Best-effort Cache API write.
+  }
+
+  return payload.keys;
+}
+
 async function verifyAccessJwt(
   token: string,
   env: Env,
@@ -200,21 +270,27 @@ async function verifyAccessJwt(
     const aud = env.CF_ACCESS_AUD!;
     const issuer = `https://${team}.cloudflareaccess.com`;
     const certsUrl = `${issuer}/cdn-cgi/access/certs`;
-    const certsResp = await fetch(certsUrl);
-    if (!certsResp.ok) {
+
+    let keys: JwksPayload["keys"];
+    try {
+      keys = await loadJwks(certsUrl);
+    } catch (err) {
       logger.error("access_certs_fetch_failed", {
-        status: certsResp.status,
         team,
+        message: err instanceof Error ? err.message : "unknown",
       });
       return null;
     }
-    const certs = (await certsResp.json()) as {
-      keys: Array<JsonWebKey & { kid?: string }>;
-    };
 
     const [headerB64, payloadB64, signatureB64] = token.split(".");
     if (!headerB64 || !payloadB64 || !signatureB64) {
       logger.warn("access_jwt_malformed");
+      return null;
+    }
+
+    const header = base64UrlToJson<{ kid?: string; alg?: string }>(headerB64);
+    if (header.alg && header.alg !== "RS256") {
+      logger.warn("access_jwt_alg_rejected", { alg: header.alg });
       return null;
     }
 
@@ -225,6 +301,7 @@ async function verifyAccessJwt(
       common_name?: string;
       name?: string;
       exp?: number;
+      nbf?: number;
     }>(payloadB64);
 
     const audOk = Array.isArray(payloadJson.aud)
@@ -244,13 +321,24 @@ async function verifyAccessJwt(
       });
       return null;
     }
-    if (payloadJson.exp && payloadJson.exp * 1000 < Date.now()) {
+
+    const now = Date.now();
+    if (
+      payloadJson.nbf &&
+      payloadJson.nbf * 1000 - JWT_CLOCK_SKEW_MS > now
+    ) {
+      logger.warn("access_jwt_nbf");
+      return null;
+    }
+    if (
+      payloadJson.exp &&
+      payloadJson.exp * 1000 + JWT_CLOCK_SKEW_MS < now
+    ) {
       logger.warn("access_jwt_expired");
       return null;
     }
 
-    const header = base64UrlToJson<{ kid?: string; alg?: string }>(headerB64);
-    const jwk = certs.keys.find((k) => k.kid === header.kid);
+    const jwk = keys.find((k) => k.kid === header.kid);
     if (!jwk) {
       logger.warn("access_jwk_kid_missing", { kid: header.kid });
       return null;

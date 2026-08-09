@@ -27,6 +27,7 @@ export const apiRateLimit = createMiddleware<{
       requestId: c.get("requestId"),
       key,
     });
+    c.header("Retry-After", "60");
     return fail(c, 429, "RATE_LIMITED", "Too many requests. Slow down a bit.");
   }
   await next();
@@ -49,6 +50,7 @@ export const uploadRateLimit = createMiddleware<{
       requestId: c.get("requestId"),
       key,
     });
+    c.header("Retry-After", "60");
     return fail(
       c,
       429,
