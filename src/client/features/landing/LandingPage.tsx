@@ -5,12 +5,13 @@ import {
 } from "../../components/HeaderControls";
 import { SiteFooter } from "../../components/SiteFooter";
 import { useI18n } from "../../i18n";
+import { accessStartUrl } from "../../lib/access";
 import { appPath } from "../../lib/paths";
 
 export function LandingPage() {
   const { t } = useI18n();
   const preview = t.landing.preview;
-  const appEntry = appPath("/dashboard");
+  const appEntry = accessStartUrl(appPath("/dashboard"));
 
   return (
     <div className="flex min-h-full flex-col">

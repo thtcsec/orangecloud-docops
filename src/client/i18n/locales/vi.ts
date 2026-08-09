@@ -22,7 +22,7 @@ export const vi: TranslationSchema = {
     notAuthenticated: "Bạn chưa đăng nhập",
     accessRequiredTitle: "Đăng nhập qua Cloudflare Access",
     accessRequiredBody:
-      "Vào DocOps qua Access (load full trang /app). Nếu bạn nhảy từ landing hoặc link cũ /dashboard bằng SPA, bấm nút bên dưới để Cloudflare bắt đăng nhập.",
+      "Cloudflare Access cần set cookie đăng nhập trước khi API tin bạn. Soft-nav từ landing sẽ bỏ qua bước đó — bấm nút bên dưới (đi qua /api/auth/start).",
     reload: "Đăng nhập Access",
   },
   common: {

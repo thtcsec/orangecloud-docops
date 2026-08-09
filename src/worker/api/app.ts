@@ -4,6 +4,7 @@ import { requestContext, type AppVariables } from "./middleware/context";
 import { securityHeaders } from "./middleware/security-headers";
 import { apiRateLimit } from "./middleware/rate-limit";
 import { healthRoutes } from "./routes/health";
+import { authStartRoutes } from "./routes/auth-start";
 import { sessionRoutes } from "./routes/session";
 import { dashboardRoutes } from "./routes/dashboard";
 import { documentRoutes } from "./routes/documents";
@@ -38,8 +39,15 @@ export function createApp() {
   const api = new Hono<{ Bindings: Env; Variables: AppVariables }>();
   // Health stays outside the API rate limiter so probes stay reliable.
   api.route("/", healthRoutes);
+  // Auth kickoff must stay reachable (Access challenges it) and not burn limiter budget.
+  api.route("/", authStartRoutes);
   api.use("*", async (c, next) => {
-    if (c.req.path === "/health" || c.req.path.endsWith("/health")) {
+    if (
+      c.req.path === "/health" ||
+      c.req.path.endsWith("/health") ||
+      c.req.path === "/auth/start" ||
+      c.req.path.endsWith("/auth/start")
+    ) {
       await next();
       return;
     }

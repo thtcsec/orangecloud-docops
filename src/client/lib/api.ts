@@ -1,4 +1,5 @@
 import type { ApiResponse } from "@shared/domain";
+import { accessStartUrl } from "./access";
 
 export class ApiError extends Error {
   code: string;
@@ -13,17 +14,33 @@ export class ApiError extends Error {
   }
 }
 
+function kickAccessLogin(): never {
+  const next = `${window.location.pathname}${window.location.search}` || "/app/dashboard";
+  window.location.assign(accessStartUrl(next));
+  throw new ApiError(401, "ACCESS_REDIRECT", "Redirecting to Cloudflare Access");
+}
+
 async function parseResponse<T>(res: Response): Promise<T> {
-  const json = (await res.json()) as ApiResponse<T>;
-  if (!json.ok) {
-    throw new ApiError(
-      res.status,
-      json.error.code,
-      json.error.message,
-      json.error.details,
-    );
+  const ct = res.headers.get("content-type") || "";
+  // Access protects /api* → unauthenticated fetch gets the login HTML, not JSON.
+  if (ct.includes("text/html")) {
+    kickAccessLogin();
   }
-  return json.data;
+  try {
+    const json = (await res.json()) as ApiResponse<T>;
+    if (!json.ok) {
+      throw new ApiError(
+        res.status,
+        json.error.code,
+        json.error.message,
+        json.error.details,
+      );
+    }
+    return json.data;
+  } catch (err) {
+    if (err instanceof ApiError) throw err;
+    kickAccessLogin();
+  }
 }
 
 export async function apiGet<T>(path: string): Promise<T> {

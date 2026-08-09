@@ -19,6 +19,24 @@ describe("API validation and authorization", () => {
     expect(body.data.status).toBe("ok");
   });
 
+  it("auth start redirects into /app after local principal resolves", async () => {
+    const res = await SELF.fetch(
+      "http://localhost/api/auth/start?next=/app/dashboard",
+      { redirect: "manual" },
+    );
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toBe("/app/dashboard");
+  });
+
+  it("auth start rejects open redirects", async () => {
+    const res = await SELF.fetch(
+      "http://localhost/api/auth/start?next=https://evil.example/phish",
+      { redirect: "manual" },
+    );
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toBe("/app/dashboard");
+  });
+
   it("rejects invalid document list query", async () => {
     const res = await SELF.fetch("http://localhost/api/documents?pageSize=9999");
     // auth may fail first in non-local if not configured; with local bindings it should validate or auth

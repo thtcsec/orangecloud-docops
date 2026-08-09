@@ -1,5 +1,6 @@
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import { accessStartUrl } from "../lib/access";
 import { apiGet } from "../lib/api";
 import { appPath } from "../lib/paths";
 import { BrandLogo } from "../components/BrandLogo";
@@ -105,8 +106,10 @@ export function AppShell() {
               title={t.session.accessRequiredTitle}
               message={t.session.accessRequiredBody}
               onRetry={() => {
-                // Full navigation so Access can challenge / set CF_Authorization.
-                window.location.assign(appPath("/dashboard"));
+                // Hit Access-protected /api/auth/start so CF sets CF_Authorization,
+                // then bounce back into /app (reload of /app alone is not enough if
+                // Access destinations only cover api*).
+                window.location.assign(accessStartUrl(appPath("/dashboard")));
               }}
               retryLabel={t.session.reload}
             />

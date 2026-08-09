@@ -68,15 +68,15 @@ One Access app, **two protect destinations** (+ health bypass for probes):
 
 | Subdomain | Domain | Path | Policy |
 |-----------|--------|------|--------|
-| `docops` | `orangecloud.vn` | `app*` | **Allow** (team emails / IdP) |
-| `docops` | `orangecloud.vn` | `api*` | **Allow** (same policy) |
-| `docops` | `orangecloud.vn` | `/api/health` | **Bypass** (higher priority than `api*`) |
+| `docops` | `orangecloud.vn` | `/app*` | **Allow** (team emails / IdP) — leading `/` matters |
+| `docops` | `orangecloud.vn` | `/api*` | **Allow** (same policy) |
+| `docops` | `orangecloud.vn` | `/api/health` | **Bypass** (higher priority than `/api*`) |
 
-Leave public (no Access destination): `/`, `/privacy`, `/assets*`, `/illustrations*`.
+Leave public (no Access destination): `/`, `/privacy`, `/assets*`, `/illustrations*`, and the SPA kickoff is fine behind `/api*` (`/api/auth/start`).
 
 Without the Bypass row, `/api/health` returns the Access login HTML instead of JSON — fine for browsers, broken for uptime monitors.
 
-Landing CTA is a full navigation to `/app/dashboard` so Access can show the login wall. Old paths like `/dashboard` redirect into `/app/...`.
+Landing CTA and the in-app “Sign in with Access” button navigate to **`/api/auth/start?next=/app/dashboard`**. That forces an Access challenge even when `/app*` is misconfigured, then redirects into the SPA with `CF_Authorization` set. Old paths like `/dashboard` redirect into `/app/...`.
 
 Repeat for staging (`docops-stg…`) when you enable Access there.
 

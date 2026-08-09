@@ -20,7 +20,7 @@ export const en = {
     notAuthenticated: "You’re not signed in",
     accessRequiredTitle: "Sign in with Cloudflare Access",
     accessRequiredBody:
-      "Open DocOps through Access (full page load to /app). If you soft-navigated from the landing page or an old /dashboard link, click reload below so Cloudflare can sign you in.",
+      "Cloudflare Access must set a login cookie before the API will trust you. Soft-nav from the landing page skips that step — use the button below (it goes through /api/auth/start).",
     reload: "Sign in with Access",
   },
   common: {
