@@ -72,9 +72,6 @@ export const en = {
       "XML invoices get parsed; rules run; a human still decides",
       "Every meaningful step leaves an audit note",
     ],
-    architectureTitle: "How the pieces fit",
-    architectureAlt:
-      "Architecture diagram: browser SPA to Worker with D1, R2, Queue, and Workflow",
     footer: "Built for OrangeCloud · runs on Cloudflare Workers",
   },
   footer: {

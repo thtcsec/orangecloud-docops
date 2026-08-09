@@ -74,9 +74,6 @@ export const vi: TranslationSchema = {
       "XML được parse, rule chạy, người vẫn quyết",
       "Mỗi bước đáng nhớ để lại ghi chú audit",
     ],
-    architectureTitle: "Các mảnh ghép với nhau thế nào",
-    architectureAlt:
-      "Sơ đồ kiến trúc: SPA tới Worker với D1, R2, Queue và Workflow",
     footer: "Làm cho OrangeCloud · chạy trên Cloudflare Workers",
   },
   footer: {
