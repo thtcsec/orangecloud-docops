@@ -1,4 +1,3 @@
-import { Link } from "react-router-dom";
 import { BrandLogo } from "../../components/BrandLogo";
 import {
   LanguageToggle,
@@ -18,12 +17,12 @@ export function LandingPage() {
           <div className="flex items-center gap-2">
             <LanguageToggle />
             <ThemeToggle />
-            <Link
-              to="/dashboard"
+            <a
+              href="/dashboard"
               className="rounded-md bg-accent-600 px-3 py-2 text-sm font-medium text-white hover:bg-accent-500"
             >
               {t.landing.ctaPrimary}
-            </Link>
+            </a>
           </div>
         </div>
       </header>
@@ -48,12 +47,12 @@ export function LandingPage() {
               {t.landing.subtitle}
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
-              <Link
-                to="/dashboard"
+              <a
+                href="/dashboard"
                 className="rounded-md bg-accent-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-accent-500"
               >
                 {t.landing.ctaPrimary}
-              </Link>
+              </a>
               <a
                 href="https://github.com/thtcsec/orangecloud-docops/blob/master/docs/ARCHITECTURE.md"
                 className="rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-ink-800 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800"

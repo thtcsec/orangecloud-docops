@@ -60,13 +60,39 @@ DNS / zone must live on the same Cloudflare account. Do not overwrite incompatib
 
 Staging/production **refuse** authenticated API use until secrets exist (`readiness.accessConfigured` on `/api/health`).
 
-1. Zero Trust → Access → Applications for both hostnames.
-2. Copy Application Audience (AUD) + team name.
-3. Put secrets:
+**Do not protect the whole hostname.** Landing `/` and `/privacy` stay public; only the ops app + API sit behind Access.
+
+#### Recommended Application paths (production)
+
+Zero Trust → Access controls → Applications → edit the `docops.orangecloud.vn` app.
+
+Replace a bare hostname destination (`docops.orangecloud.vn` with empty path) with **path-scoped** public hostnames (same AUD / policies):
+
+| Domain | Path |
+|--------|------|
+| `docops.orangecloud.vn` | `dashboard*` |
+| `docops.orangecloud.vn` | `documents*` |
+| `docops.orangecloud.vn` | `cases*` |
+| `docops.orangecloud.vn` | `review*` |
+| `docops.orangecloud.vn` | `rules*` |
+| `docops.orangecloud.vn` | `audit*` |
+| `docops.orangecloud.vn` | `settings*` |
+| `docops.orangecloud.vn` | `api*` |
+
+Leave **public** (no Access app covering them): `/`, `/privacy`, `/assets/*`, illustrations, and other static assets.
+
+Landing CTA uses a full navigation to `/dashboard` so Access can show the login wall (SPA client routing alone would skip Access).
+
+Repeat the same path pattern for staging (`docops-stg.orangecloud.vn`) when you enable Access there.
+
+#### Secrets
+
+1. Copy Application Audience (AUD) + team name (`cloudspacevn`).
+2. Put secrets:
 
 ```powershell
 $env:CLOUDFLARE_ACCOUNT_ID = "4c15704ef706b9c8954cd6f9feb678d8"
-$env:CF_ACCESS_TEAM_DOMAIN = "<team>"   # e.g. orangecloud (no .cloudflareaccess.com)
+$env:CF_ACCESS_TEAM_DOMAIN = "<team>"   # e.g. cloudspacevn (no .cloudflareaccess.com)
 $env:CF_ACCESS_AUD_STAGING = "<aud>"
 $env:CF_ACCESS_AUD_PRODUCTION = "<aud>"
 pwsh -File scripts/put-access-secrets.ps1
@@ -81,7 +107,7 @@ npx wrangler secret put CF_ACCESS_AUD --env production
 npx wrangler secret put CF_ACCESS_TEAM_DOMAIN --env production
 ```
 
-4. First Access login maps to **viewer**; elevate admins in D1.
+3. Bootstrap admin: production already has `BOOTSTRAP_ADMIN_EMAILS`. First Access login otherwise maps to **viewer**; elevate in D1 if needed.
 
 ### Hardening already in Worker
 
