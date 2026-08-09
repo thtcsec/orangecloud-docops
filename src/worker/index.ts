@@ -12,6 +12,10 @@ export { DocumentProcessingWorkflow };
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext) {
     const url = new URL(request.url);
+    // Exact /api (no trailing slash) would otherwise fall through to the SPA.
+    if (url.pathname === "/api") {
+      return Response.redirect(new URL("/api/health", url).toString(), 308);
+    }
     if (url.pathname.startsWith("/api/")) {
       return app.fetch(request, env, ctx);
     }

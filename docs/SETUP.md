@@ -74,6 +74,8 @@ One Access app, **two protect destinations** (+ health bypass for probes):
 
 Leave public (no Access destination): `/`, `/privacy`, `/assets*`, `/illustrations*`, and the SPA kickoff is fine behind `/api*` (`/api/auth/start`).
 
+Wrangler must set `assets.run_worker_first: ["/api/*"]`. Without it, a full-page click to `/api/auth/start` is treated as an SPA navigation (`Sec-Fetch-Mode: navigate`), `index.html` is served, and the client catch-all sends you back to `/`.
+
 Without the Bypass row, `/api/health` returns the Access login HTML instead of JSON — fine for browsers, broken for uptime monitors.
 
 Landing CTA and the in-app “Sign in with Access” button navigate to **`/api/auth/start?next=/app/dashboard`**. That forces an Access challenge even when `/app*` is misconfigured, then redirects into the SPA with `CF_Authorization` set. Old paths like `/dashboard` redirect into `/app/...`.

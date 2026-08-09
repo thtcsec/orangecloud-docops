@@ -56,6 +56,8 @@ export function AppRoutes() {
         <Route key={segment} path={`/${segment}/*`} element={<LegacyAppRedirect />} />
       ))}
 
+      {/* Never soft-send unknown paths that look like API into the marketing home. */}
+      <Route path="/api/*" element={<Navigate to="/app/dashboard" replace />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
