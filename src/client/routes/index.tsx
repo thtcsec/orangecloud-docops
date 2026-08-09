@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { AppShell } from "../layouts/AppShell";
 import { LandingPage } from "../features/landing/LandingPage";
@@ -15,9 +16,20 @@ import { IntegrationsPage } from "../features/integrations/IntegrationsPage";
 import { PrivacyPage } from "../features/privacy/PrivacyPage";
 import { APP_BASE, LEGACY_APP_SEGMENTS } from "../lib/paths";
 
+/** Full browser navigation so Cloudflare Access can intercept /app/*. */
 function LegacyAppRedirect() {
   const { pathname, search, hash } = useLocation();
-  return <Navigate to={`${APP_BASE}${pathname}${search}${hash}`} replace />;
+  const target = `${APP_BASE}${pathname}${search}${hash}`;
+
+  useEffect(() => {
+    window.location.replace(target);
+  }, [target]);
+
+  return (
+    <p className="p-6 text-sm text-ink-500">
+      Redirecting to {target}…
+    </p>
+  );
 }
 
 export function AppRoutes() {

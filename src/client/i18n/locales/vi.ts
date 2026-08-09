@@ -22,8 +22,8 @@ export const vi: TranslationSchema = {
     notAuthenticated: "Bạn chưa đăng nhập",
     accessRequiredTitle: "Đăng nhập qua Cloudflare Access",
     accessRequiredBody:
-      "Phần app nội bộ nằm dưới /app. Vào qua Access — nếu đã login mà vẫn thấy dòng này, Access có thể chưa canh /app* và /api*.",
-    reload: "Tải lại sau khi login Access",
+      "Vào DocOps qua Access (load full trang /app). Nếu bạn nhảy từ landing hoặc link cũ /dashboard bằng SPA, bấm nút bên dưới để Cloudflare bắt đăng nhập.",
+    reload: "Đăng nhập Access",
   },
   common: {
     loading: "Chờ một chút…",

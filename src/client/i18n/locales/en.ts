@@ -20,8 +20,8 @@ export const en = {
     notAuthenticated: "You’re not signed in",
     accessRequiredTitle: "Sign in with Cloudflare Access",
     accessRequiredBody:
-      "The ops app under /app is internal. Open it through Access login — if you already signed in and still see this, Access may not be covering /app* and /api* yet.",
-    reload: "Reload after Access login",
+      "Open DocOps through Access (full page load to /app). If you soft-navigated from the landing page or an old /dashboard link, click reload below so Cloudflare can sign you in.",
+    reload: "Sign in with Access",
   },
   common: {
     loading: "One moment…",

@@ -104,7 +104,10 @@ export function AppShell() {
             <QueryErrorState
               title={t.session.accessRequiredTitle}
               message={t.session.accessRequiredBody}
-              onRetry={() => window.location.reload()}
+              onRetry={() => {
+                // Full navigation so Access can challenge / set CF_Authorization.
+                window.location.assign(appPath("/dashboard"));
+              }}
               retryLabel={t.session.reload}
             />
           ) : session.isLoading ? (
