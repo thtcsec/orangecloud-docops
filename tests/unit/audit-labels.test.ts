@@ -26,4 +26,12 @@ describe("audit labels", () => {
       /Chứng từ/,
     );
   });
+
+  it("maps user lifecycle actions", () => {
+    expect(formatAuditAction("user.created", "en")).toBe("User created");
+    expect(formatAuditAction("user.disabled", "vi")).toContain("khoá");
+    expect(formatAuditEntity("user", "usr_abcdefghijklmnop", "en")).toMatch(
+      /User/,
+    );
+  });
 });

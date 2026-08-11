@@ -18,6 +18,8 @@ export type ClassificationResult = {
   confidence: number;
   provider: string;
   configured: boolean;
+  /** Filename looks like a quote/estimate rather than a tax invoice. */
+  likelyQuote?: boolean;
 };
 
 export type ConversionResult = {

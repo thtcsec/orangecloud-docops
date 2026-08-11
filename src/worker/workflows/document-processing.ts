@@ -144,24 +144,33 @@ export class DocumentProcessingWorkflow extends WorkflowEntrypoint<
             })()
           : strategy.strategy === "workers_ai_pdf"
             ? await (async () => {
-                const obj = await this.env.DOCUMENTS_BUCKET.get(
-                  params.r2ObjectKey,
-                );
-                if (!obj) {
+                try {
+                  const obj = await this.env.DOCUMENTS_BUCKET.get(
+                    params.r2ObjectKey,
+                  );
+                  if (!obj) {
+                    return {
+                      configured: true,
+                      provider: "workers-ai",
+                      fields: [],
+                      message: "R2 object missing at PDF extract time",
+                    };
+                  }
+                  const bytes = await obj.arrayBuffer();
+                  return await new WorkersAiPdfExtractor(this.env.AI).extract({
+                    r2ObjectKey: params.r2ObjectKey,
+                    mimeType: meta.mimeType,
+                    filename: meta.filename,
+                    bytes,
+                  });
+                } catch (err) {
                   return {
                     configured: true,
                     provider: "workers-ai",
                     fields: [],
-                    message: "R2 object missing at PDF extract time",
+                    message: `Workers AI extract failed: ${err instanceof Error ? err.message : "unknown"}`,
                   };
                 }
-                const bytes = await obj.arrayBuffer();
-                return new WorkersAiPdfExtractor(this.env.AI).extract({
-                  r2ObjectKey: params.r2ObjectKey,
-                  mimeType: meta.mimeType,
-                  filename: meta.filename,
-                  bytes,
-                });
               })()
             : await new NotConfiguredExtractor().extract({
                 r2ObjectKey: params.r2ObjectKey,
@@ -276,6 +285,7 @@ export class DocumentProcessingWorkflow extends WorkflowEntrypoint<
           conversionConfigured: conversion.configured,
           message: extraction.message,
           detectedType: detected.documentType,
+          likelyQuote: Boolean(detected.likelyQuote),
           fieldCount: extraction.fields.length,
           ruleFailCount: failCount,
           ruleWarnCount: warnCount,
@@ -288,6 +298,7 @@ export class DocumentProcessingWorkflow extends WorkflowEntrypoint<
         message: extraction.message,
         failCount,
         warnCount,
+        likelyQuote: Boolean(detected.likelyQuote),
       };
     });
 
@@ -312,6 +323,9 @@ export class DocumentProcessingWorkflow extends WorkflowEntrypoint<
           processing.fieldCount > 0
             ? `Parsed ${processing.fieldCount} field(s).`
             : "No structured fields extracted.",
+          processing.likelyQuote
+            ? "Filename suggests a quote/estimate — invoice fields may be incomplete."
+            : null,
           processing.failCount > 0
             ? `${processing.failCount} rule fail(s).`
             : null,
@@ -342,7 +356,10 @@ export class DocumentProcessingWorkflow extends WorkflowEntrypoint<
           entityType: "review_task",
           entityId: task.id,
           requestId: params.requestId,
-          metadata: { documentId: params.documentId },
+          metadata: {
+            documentId: params.documentId,
+            likelyQuote: processing.likelyQuote,
+          },
         });
       }
       return task.id;

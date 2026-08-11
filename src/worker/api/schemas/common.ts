@@ -64,3 +64,46 @@ export const auditQuerySchema = paginationSchema.extend({
   from: z.string().optional(),
   to: z.string().optional(),
 });
+
+export const patchCaseSchema = z
+  .object({
+    reference: z.string().min(1).max(120).optional(),
+    vendorName: z.string().max(255).nullable().optional(),
+    vendorTaxId: z.string().max(64).nullable().optional(),
+    status: z.enum(["open", "in_review", "approved", "rejected", "exported"]).optional(),
+  })
+  .refine(
+    (v) =>
+      v.reference !== undefined ||
+      v.vendorName !== undefined ||
+      v.vendorTaxId !== undefined ||
+      v.status !== undefined,
+    { message: "At least one field is required" },
+  );
+
+export const patchDocumentSchema = z
+  .object({
+    displayName: z.string().min(1).max(255).optional(),
+    documentType: z.enum(DOCUMENT_TYPES).optional(),
+    caseId: z.string().max(128).nullable().optional(),
+  })
+  .refine(
+    (v) =>
+      v.displayName !== undefined ||
+      v.documentType !== undefined ||
+      v.caseId !== undefined,
+    { message: "At least one field is required" },
+  );
+
+export const patchExtractedFieldSchema = z.object({
+  normalizedValue: z.string().max(1000).nullable().optional(),
+  rawValue: z.string().max(1000).nullable().optional(),
+});
+
+export const exportDocumentsQuerySchema = z.object({
+  status: z.string().optional(),
+  documentType: z.enum(DOCUMENT_TYPES).optional(),
+  from: z.string().optional(),
+  to: z.string().optional(),
+});
+

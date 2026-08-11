@@ -7,6 +7,7 @@ import {
   formatAuditEntity,
 } from "../../lib/audit-labels";
 import { formatDate } from "../../lib/format";
+import { appPath } from "../../lib/paths";
 import {
   DataTable,
   EmptyState,
@@ -63,6 +64,8 @@ export function AuditPage() {
       <PageHeader
         title={t.audit.title}
         description={t.audit.description}
+        backTo={appPath("/admin")}
+        backLabel={t.nav.admin}
       />
 
       <Panel className="mb-4 p-4">

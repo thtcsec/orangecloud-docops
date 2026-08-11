@@ -496,3 +496,185 @@ export async function enrichDocumentsForList(
     };
   });
 }
+
+export async function getExtractedFieldById(
+  db: Db,
+  fieldId: string,
+): Promise<ExtractedFieldRow | null> {
+  return first<ExtractedFieldRow>(
+    db.prepare(`SELECT * FROM extracted_fields WHERE id = ? LIMIT 1`).bind(fieldId),
+  );
+}
+
+export async function updateExtractedField(
+  db: Db,
+  fieldId: string,
+  patch: {
+    normalized_value?: string | null;
+    raw_value?: string | null;
+    confidence?: number | null;
+    source_kind?: string | null;
+  },
+): Promise<ExtractedFieldRow | null> {
+  const fields: string[] = [];
+  const binds: unknown[] = [];
+  for (const [key, value] of Object.entries(patch)) {
+    fields.push(`${key} = ?`);
+    binds.push(value);
+  }
+  if (fields.length === 0) {
+    return getExtractedFieldById(db, fieldId);
+  }
+  binds.push(fieldId);
+  await db
+    .prepare(`UPDATE extracted_fields SET ${fields.join(", ")} WHERE id = ?`)
+    .bind(...binds)
+    .run();
+  return getExtractedFieldById(db, fieldId);
+}
+
+export type ExportDocumentItem = {
+  id: string;
+  display_name: string;
+  document_type: string;
+  status: string;
+  case_reference: string | null;
+  vendor_name: string | null;
+  vendor_tax_id: string | null;
+  invoice_number: string | null;
+  invoice_date: string | null;
+  subtotal: string | null;
+  tax_amount: string | null;
+  total_amount: string | null;
+  created_at: string;
+  reviewer_email: string | null;
+  decision: string | null;
+  decided_at: string | null;
+};
+
+export async function getDocumentsForExport(
+  db: Db,
+  organizationId: string,
+  filter?: {
+    status?: string;
+    documentType?: string;
+    from?: string;
+    to?: string;
+  },
+): Promise<ExportDocumentItem[]> {
+  let query = `
+    SELECT 
+      d.id,
+      d.display_name,
+      d.document_type,
+      d.status,
+      d.created_at,
+      c.reference as case_reference,
+      c.vendor_name,
+      c.vendor_tax_id,
+      d.current_version_id
+    FROM documents d
+    LEFT JOIN contract_to_pay_cases c ON c.id = d.case_id
+    WHERE d.organization_id = ?
+  `;
+  const binds: unknown[] = [organizationId];
+
+  if (filter?.status) {
+    query += ` AND d.status = ?`;
+    binds.push(filter.status);
+  }
+  if (filter?.documentType) {
+    query += ` AND d.document_type = ?`;
+    binds.push(filter.documentType);
+  }
+  if (filter?.from) {
+    query += ` AND d.created_at >= ?`;
+    binds.push(filter.from);
+  }
+  if (filter?.to) {
+    query += ` AND d.created_at <= ?`;
+    binds.push(filter.to);
+  }
+
+  query += ` ORDER BY d.created_at DESC LIMIT 500`;
+
+  const rows = await all<
+    DocumentRow & {
+      case_reference: string | null;
+      vendor_name: string | null;
+      vendor_tax_id: string | null;
+    }
+  >(db.prepare(query).bind(...binds));
+
+  const items: ExportDocumentItem[] = [];
+
+  for (const doc of rows) {
+    let invoiceNumber: string | null = null;
+    let invoiceDate: string | null = null;
+    let subtotal: string | null = null;
+    let taxAmount: string | null = null;
+    let totalAmount: string | null = null;
+    let reviewerEmail: string | null = null;
+    let decision: string | null = null;
+    let decidedAt: string | null = null;
+
+    if (doc.current_version_id) {
+      const fields = await listExtractedFields(db, doc.current_version_id);
+      for (const f of fields) {
+        if (f.field_name === "invoice_number") invoiceNumber = f.normalized_value;
+        if (f.field_name === "invoice_date") invoiceDate = f.normalized_value;
+        if (f.field_name === "subtotal") subtotal = f.normalized_value;
+        if (f.field_name === "tax_amount") taxAmount = f.normalized_value;
+        if (f.field_name === "total_amount") totalAmount = f.normalized_value;
+        if (!doc.vendor_tax_id && f.field_name === "vendor_tax_id") {
+          doc.vendor_tax_id = f.normalized_value;
+        }
+        if (!doc.vendor_name && f.field_name === "vendor_name") {
+          doc.vendor_name = f.normalized_value;
+        }
+      }
+    }
+
+    const reviewTask = await first<{ id: string }>(
+      db.prepare(`SELECT id FROM review_tasks WHERE document_id = ? ORDER BY created_at DESC LIMIT 1`).bind(doc.id),
+    );
+    if (reviewTask) {
+      const dec = await first<{ decision: string; created_at: string; email: string }>(
+        db.prepare(
+          `SELECT rd.decision, rd.created_at, u.email 
+           FROM review_decisions rd 
+           JOIN users u ON u.id = rd.reviewer_id 
+           WHERE rd.review_task_id = ? 
+           ORDER BY rd.created_at DESC LIMIT 1`,
+        ).bind(reviewTask.id),
+      );
+      if (dec) {
+        decision = dec.decision;
+        decidedAt = dec.created_at;
+        reviewerEmail = dec.email;
+      }
+    }
+
+    items.push({
+      id: doc.id,
+      display_name: doc.display_name,
+      document_type: doc.document_type,
+      status: doc.status,
+      case_reference: doc.case_reference,
+      vendor_name: doc.vendor_name,
+      vendor_tax_id: doc.vendor_tax_id,
+      invoice_number: invoiceNumber,
+      invoice_date: invoiceDate,
+      subtotal,
+      tax_amount: taxAmount,
+      total_amount: totalAmount,
+      created_at: doc.created_at,
+      reviewer_email: reviewerEmail,
+      decision,
+      decided_at: decidedAt,
+    });
+  }
+
+  return items;
+}
+

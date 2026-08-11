@@ -143,96 +143,135 @@ function responseTextFromLlm(result: unknown): string {
 }
 
 const SYSTEM_PROMPT = `You extract Vietnamese Contract-to-Pay invoice fields from document text.
-Return ONLY a JSON object (no markdown fences) with these keys when present:
+Return ONLY a JSON object (no markdown fences) with these keys when present in the text:
 invoice_number, invoice_symbol, invoice_date, vendor_name, vendor_tax_id,
 buyer_name, buyer_tax_id, currency, subtotal, tax_amount, total_amount, payment_terms.
-Use null for missing values. Do not invent numbers. Money as plain numbers or digit strings.
-Tax IDs as strings. Dates ISO (YYYY-MM-DD) when possible.`;
+Rules:
+- Only include a key when the value appears in the document text. Otherwise use null.
+- Do not invent invoice numbers, tax IDs, or money amounts.
+- Money: digits only (optionally with decimal). Prefer plain numbers like 1234567.89.
+- Tax IDs: keep as digit strings (no spaces).
+- Dates: ISO YYYY-MM-DD when the day is clear; otherwise leave the original text.
+- Quotes/estimates may lack invoice_number or tax IDs — leave those null.`;
+
+async function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timer = setTimeout(
+          () => reject(new Error(`${label} timed out after ${ms}ms`)),
+          ms,
+        );
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
 
 export async function extractInvoiceFieldsFromPdf(input: {
   ai: Ai;
   filename: string;
   bytes: ArrayBuffer;
 }): Promise<ExtractionResult> {
-  const blob = new Blob([new Uint8Array(input.bytes)], {
-    type: "application/pdf",
-  });
-
-  let mdResult: unknown;
   try {
-    const aiAny = input.ai as Ai & {
-      toMarkdown: (
-        files: unknown,
-        opts?: unknown,
-      ) => Promise<unknown>;
-    };
-    mdResult = await aiAny.toMarkdown({
-      name: input.filename || "document.pdf",
-      blob,
+    const blob = new Blob([new Uint8Array(input.bytes)], {
+      type: "application/pdf",
     });
+
+    let mdResult: unknown;
+    try {
+      const aiAny = input.ai as Ai & {
+        toMarkdown: (
+          files: unknown,
+          opts?: unknown,
+        ) => Promise<unknown>;
+      };
+      mdResult = await withTimeout(
+        aiAny.toMarkdown({
+          name: input.filename || "document.pdf",
+          blob,
+        }),
+        45_000,
+        "PDF→Markdown",
+      );
+    } catch (err) {
+      return {
+        configured: true,
+        provider: "workers-ai",
+        fields: [],
+        message: `PDF→Markdown failed: ${err instanceof Error ? err.message : "unknown"}`,
+      };
+    }
+
+    const markdown = markdownFromToMarkdownResult(mdResult);
+    if (!markdown || !markdown.trim()) {
+      return {
+        configured: true,
+        provider: "workers-ai",
+        fields: [],
+        message: "PDF produced no extractable text (scanned image or empty).",
+      };
+    }
+
+    const clipped = markdown.slice(0, 14_000);
+    let llmRaw: unknown;
+    try {
+      llmRaw = await withTimeout(
+        input.ai.run(WORKERS_AI_PDF_MODEL, {
+          messages: [
+            { role: "system", content: SYSTEM_PROMPT },
+            {
+              role: "user",
+              content: `Document filename: ${input.filename}\n\nMarkdown:\n${clipped}`,
+            },
+          ],
+          max_tokens: 800,
+          temperature: 0,
+        }),
+        45_000,
+        "Field LLM",
+      );
+    } catch (err) {
+      return {
+        configured: true,
+        provider: "workers-ai",
+        fields: [],
+        message: `Field LLM failed: ${err instanceof Error ? err.message : "unknown"}`,
+      };
+    }
+
+    const text = responseTextFromLlm(llmRaw);
+    const json = extractJsonObject(text);
+    if (!json) {
+      return {
+        configured: true,
+        provider: "workers-ai",
+        fields: [],
+        message: "Model did not return parseable invoice JSON.",
+      };
+    }
+
+    const fields = mapInvoiceJsonToFields(json);
+    return {
+      configured: true,
+      provider: "workers-ai",
+      fields,
+      message:
+        fields.length > 0
+          ? `Extracted ${fields.length} field(s) via Workers AI (PDF→Markdown→LLM).`
+          : "Workers AI ran but found no invoice fields in the PDF text.",
+    };
   } catch (err) {
     return {
       configured: true,
       provider: "workers-ai",
       fields: [],
-      message: `PDF→Markdown failed: ${err instanceof Error ? err.message : "unknown"}`,
+      message: `Workers AI extraction error: ${err instanceof Error ? err.message : "unknown"}`,
     };
   }
-
-  const markdown = markdownFromToMarkdownResult(mdResult);
-  if (!markdown || !markdown.trim()) {
-    return {
-      configured: true,
-      provider: "workers-ai",
-      fields: [],
-      message: "PDF produced no extractable text (scanned image or empty).",
-    };
-  }
-
-  const clipped = markdown.slice(0, 14_000);
-  let llmRaw: unknown;
-  try {
-    llmRaw = await input.ai.run(WORKERS_AI_PDF_MODEL, {
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        {
-          role: "user",
-          content: `Document filename: ${input.filename}\n\nMarkdown:\n${clipped}`,
-        },
-      ],
-      max_tokens: 800,
-      temperature: 0,
-    });
-  } catch (err) {
-    return {
-      configured: true,
-      provider: "workers-ai",
-      fields: [],
-      message: `Field LLM failed: ${err instanceof Error ? err.message : "unknown"}`,
-    };
-  }
-
-  const text = responseTextFromLlm(llmRaw);
-  const json = extractJsonObject(text);
-  if (!json) {
-    return {
-      configured: true,
-      provider: "workers-ai",
-      fields: [],
-      message: "Model did not return parseable invoice JSON.",
-    };
-  }
-
-  const fields = mapInvoiceJsonToFields(json);
-  return {
-    configured: true,
-    provider: "workers-ai",
-    fields,
-    message:
-      fields.length > 0
-        ? `Extracted ${fields.length} field(s) via Workers AI (PDF→Markdown→LLM).`
-        : "Workers AI ran but found no invoice fields in the PDF text.",
-  };
 }
 
 export class WorkersAiPdfExtractor {

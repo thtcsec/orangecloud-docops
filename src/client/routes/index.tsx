@@ -12,8 +12,10 @@ import { CaseDetailPage, CasesPage } from "../features/cases/CasesPage";
 import { ReviewPage } from "../features/review/ReviewPage";
 import { RulesPage } from "../features/rules/RulesPage";
 import { AuditPage } from "../features/audit/AuditPage";
+import { AdminPage } from "../features/admin/AdminPage";
 import { IntegrationsPage } from "../features/integrations/IntegrationsPage";
 import { ProfilePage } from "../features/settings/ProfilePage";
+import { UsersPage } from "../features/settings/UsersPage";
 import { PrivacyPage } from "../features/privacy/PrivacyPage";
 import { APP_BASE, LEGACY_APP_SEGMENTS } from "../lib/paths";
 
@@ -52,8 +54,10 @@ export function AppRoutes() {
         <Route path="review" element={<ReviewPage />} />
         <Route path="rules" element={<RulesPage />} />
         <Route path="audit" element={<AuditPage />} />
+        <Route path="admin" element={<AdminPage />} />
         <Route path="settings/integrations" element={<IntegrationsPage />} />
         <Route path="settings/profile" element={<ProfilePage />} />
+        <Route path="settings/users" element={<UsersPage />} />
       </Route>
 
       {LEGACY_APP_SEGMENTS.map((segment) => (

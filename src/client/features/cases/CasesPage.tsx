@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
-import { RELATIONSHIP_TYPES } from "@shared/domain";
-import { apiGet, apiPostJson } from "../../lib/api";
+import { RELATIONSHIP_TYPES, roleCanUpload } from "@shared/domain";
+import { apiGet, apiPatchJson, apiPostJson } from "../../lib/api";
 import { formatAuditAction } from "../../lib/audit-labels";
 import { formatDate } from "../../lib/format";
 import { appPath } from "../../lib/paths";
+import { DocumentPickerModal } from "../../components/DocumentPickerModal";
 import {
   Button,
   DetailSkeleton,
@@ -24,6 +25,7 @@ import {
   Select,
 } from "../../components/ui";
 import { useI18n } from "../../i18n";
+
 
 type CasesResponse = {
   items: Array<{
@@ -259,6 +261,141 @@ export function CasesPage() {
   );
 }
 
+type EditCaseModalProps = {
+  open: boolean;
+  caseItem: {
+    id: string;
+    reference: string;
+    vendor_name: string | null;
+    vendor_tax_id: string | null;
+    status: string;
+  };
+  onClose: () => void;
+  onSuccess?: () => void;
+};
+
+function EditCaseModal({ open, caseItem, onClose, onSuccess }: EditCaseModalProps) {
+  const { t } = useI18n();
+  const qc = useQueryClient();
+  const [reference, setReference] = useState(caseItem.reference);
+  const [vendorName, setVendorName] = useState(caseItem.vendor_name || "");
+  const [vendorTaxId, setVendorTaxId] = useState(caseItem.vendor_tax_id || "");
+  const [status, setStatus] = useState(caseItem.status);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const mutation = useMutation({
+    mutationFn: () =>
+      apiPatchJson<{ case: CaseDetail["case"] }>(`/api/cases/${caseItem.id}`, {
+        reference: reference.trim(),
+        vendorName: vendorName.trim() || null,
+        vendorTaxId: vendorTaxId.trim() || null,
+        status,
+      }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["case", caseItem.id] });
+      void qc.invalidateQueries({ queryKey: ["cases"] });
+      onSuccess?.();
+      onClose();
+    },
+    onError: (err) => {
+      setErrorMsg(err instanceof Error ? err.message : t.common.actionFailed);
+    },
+  });
+
+  if (!open) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-[80] flex items-end justify-center bg-slate-950/50 p-4 backdrop-blur-sm sm:items-center"
+      role="presentation"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget && !mutation.isPending) onClose();
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        className="w-full max-w-lg rounded-xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900"
+      >
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3 dark:border-slate-800">
+          <h2 className="text-lg font-semibold text-ink-950">
+            {t.cases.editCaseTitle}
+          </h2>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={mutation.isPending}
+            className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+          >
+            ✕
+          </button>
+        </div>
+
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!reference.trim()) return;
+            mutation.mutate();
+          }}
+          className="mt-4 space-y-3"
+        >
+          {errorMsg && (
+            <div className="rounded bg-rose-50 p-2 text-xs text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">
+              {errorMsg}
+            </div>
+          )}
+
+          <Field label={t.cases.reference}>
+            <Input
+              value={reference}
+              onChange={(e) => setReference(e.target.value)}
+              required
+            />
+          </Field>
+
+          <Field label={t.cases.vendor} hint={t.common.optional}>
+            <Input
+              value={vendorName}
+              onChange={(e) => setVendorName(e.target.value)}
+            />
+          </Field>
+
+          <Field label={t.cases.vendorTaxId} hint={t.common.optional}>
+            <Input
+              value={vendorTaxId}
+              onChange={(e) => setVendorTaxId(e.target.value)}
+            />
+          </Field>
+
+          <Field label={t.cases.caseStatus}>
+            <Select value={status} onChange={(e) => setStatus(e.target.value)}>
+              <option value="open">open</option>
+              <option value="in_review">in_review</option>
+              <option value="approved">approved</option>
+              <option value="rejected">rejected</option>
+              <option value="exported">exported</option>
+            </Select>
+          </Field>
+
+          <div className="mt-5 flex justify-end gap-2 border-t border-slate-100 pt-4 dark:border-slate-800">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={onClose}
+              disabled={mutation.isPending}
+            >
+              {t.common.cancel}
+            </Button>
+            <Button type="submit" variant="primary" disabled={mutation.isPending}>
+              {mutation.isPending ? t.common.loading : t.common.confirm}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export function CaseDetailPage() {
   const { t, locale } = useI18n();
   const { caseId = "" } = useParams();
@@ -267,12 +404,21 @@ export function CaseDetailPage() {
   const [relationshipType, setRelationshipType] = useState<string>("invoice");
   const [linkError, setLinkError] = useState<string | null>(null);
   const [linkOk, setLinkOk] = useState(false);
+  const [showPicker, setShowPicker] = useState(false);
+  const [showEditCase, setShowEditCase] = useState(false);
+
+  const session = useQuery({
+    queryKey: ["session"],
+    queryFn: () => apiGet<{ user: { role: string } }>("/api/session"),
+  });
 
   const query = useQuery({
     queryKey: ["case", caseId],
     queryFn: () => apiGet<CaseDetail>(`/api/cases/${caseId}`),
     enabled: Boolean(caseId),
   });
+
+  const canEdit = roleCanUpload(session.data?.user.role);
 
   const linkDoc = useMutation({
     mutationFn: () =>
@@ -320,16 +466,38 @@ export function CaseDetailPage() {
 
   const relLabels = t.cases.relationships;
 
+  // Breakdown of linked document types
+  const contractsCount = data.documents.filter(
+    (d) => d.relationship_type === "contract",
+  ).length;
+  const posCount = data.documents.filter(
+    (d) => d.relationship_type === "purchase_order",
+  ).length;
+  const invoicesCount = data.documents.filter(
+    (d) => d.relationship_type === "invoice",
+  ).length;
+
   return (
     <div className="space-y-4">
-      <PageHeader
-        title={data.case.reference}
-        description={t.cases.vendorLine
-          .replace("{name}", data.case.vendor_name || t.common.none)
-          .replace("{taxId}", data.case.vendor_tax_id || t.common.none)}
-        backTo={appPath("/cases")}
-        backLabel={t.common.backToCases}
-      />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <PageHeader
+          title={data.case.reference}
+          description={t.cases.vendorLine
+            .replace("{name}", data.case.vendor_name || t.common.none)
+            .replace("{taxId}", data.case.vendor_tax_id || t.common.none)}
+          backTo={appPath("/cases")}
+          backLabel={t.common.backToCases}
+        />
+        {canEdit && (
+          <Button
+            variant="secondary"
+            onClick={() => setShowEditCase(true)}
+            className="self-start sm:self-center"
+          >
+            ✏️ {t.cases.editCase}
+          </Button>
+        )}
+      </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
         <Panel>
@@ -354,11 +522,60 @@ export function CaseDetailPage() {
         </Panel>
       </div>
 
-      <Panel>
+      {/* C2P Financial & Document Structure Summary */}
+      <Panel className="p-4">
         <PanelHeader
-          title={t.cases.linked}
-          subtitle={t.cases.linkedSub}
+          title={t.cases.c2pFinancialTitle}
+          subtitle={t.cases.c2pDocumentsCount.replace(
+            "{count}",
+            String(data.documents.length),
+          )}
         />
+        <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="rounded-lg bg-slate-50 p-3 dark:bg-slate-800/40">
+            <div className="text-xs text-ink-500">{relLabels.contract}</div>
+            <div className="mt-1 text-lg font-semibold text-ink-950">
+              {contractsCount}
+            </div>
+          </div>
+          <div className="rounded-lg bg-slate-50 p-3 dark:bg-slate-800/40">
+            <div className="text-xs text-ink-500">{relLabels.purchase_order}</div>
+            <div className="mt-1 text-lg font-semibold text-ink-950">
+              {posCount}
+            </div>
+          </div>
+          <div className="rounded-lg bg-slate-50 p-3 dark:bg-slate-800/40">
+            <div className="text-xs text-ink-500">{relLabels.invoice}</div>
+            <div className="mt-1 text-lg font-semibold text-ink-950">
+              {invoicesCount}
+            </div>
+          </div>
+          <div className="rounded-lg bg-slate-50 p-3 dark:bg-slate-800/40">
+            <div className="text-xs text-ink-500">{t.cases.exceptions}</div>
+            <div className="mt-1 text-lg font-semibold text-amber-600 dark:text-amber-400">
+              {data.exceptions.length}
+            </div>
+          </div>
+        </div>
+      </Panel>
+
+      <Panel>
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 p-4 dark:border-slate-800">
+          <PanelHeader
+            title={t.cases.linked}
+            subtitle={t.cases.linkedSub}
+          />
+          {canEdit && (
+            <Button
+              variant="primary"
+              onClick={() => setShowPicker(true)}
+              className="text-xs"
+            >
+              📑 {t.cases.openPicker}
+            </Button>
+          )}
+        </div>
+
         {data.documents.length === 0 ? (
           <EmptyState
             title={t.cases.noLinkedTitle}
@@ -393,46 +610,56 @@ export function CaseDetailPage() {
           </ul>
         )}
 
-        <div className="space-y-3 border-t border-slate-100 px-4 py-4 dark:border-slate-800">
-          <h3 className="text-sm font-semibold text-ink-900">
-            {t.cases.linkTitle}
-          </h3>
-          <p className="text-xs text-ink-500">{t.cases.linkHint}</p>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Field label={t.cases.linkDocumentId}>
-              <Input
-                value={linkDocumentId}
-                onChange={(e) => {
-                  setLinkDocumentId(e.target.value);
-                  setLinkOk(false);
-                }}
-                placeholder="doc_…"
-              />
-            </Field>
-            <Field label={t.cases.linkRelationship}>
-              <Select
-                value={relationshipType}
-                onChange={(e) => setRelationshipType(e.target.value)}
+        {canEdit && (
+          <div className="space-y-3 border-t border-slate-100 px-4 py-4 dark:border-slate-800">
+            <h3 className="text-sm font-semibold text-ink-900">
+              {t.cases.linkTitle}
+            </h3>
+            <p className="text-xs text-ink-500">{t.cases.linkHint}</p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label={t.cases.linkDocumentId}>
+                <Input
+                  value={linkDocumentId}
+                  onChange={(e) => {
+                    setLinkDocumentId(e.target.value);
+                    setLinkOk(false);
+                  }}
+                  placeholder="doc_…"
+                />
+              </Field>
+              <Field label={t.cases.linkRelationship}>
+                <Select
+                  value={relationshipType}
+                  onChange={(e) => setRelationshipType(e.target.value)}
+                >
+                  {RELATIONSHIP_TYPES.map((type) => (
+                    <option key={type} value={type}>
+                      {relLabels[type as keyof typeof relLabels] || type}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+            </div>
+            {linkError ? <ErrorBanner message={linkError} /> : null}
+            {linkOk ? (
+              <SoftBanner tone="ok">{t.cases.linkSuccess}</SoftBanner>
+            ) : null}
+            <div className="flex gap-2">
+              <Button
+                onClick={() => linkDoc.mutate()}
+                disabled={linkDoc.isPending || !linkDocumentId.trim()}
               >
-                {RELATIONSHIP_TYPES.map((type) => (
-                  <option key={type} value={type}>
-                    {relLabels[type as keyof typeof relLabels] || type}
-                  </option>
-                ))}
-              </Select>
-            </Field>
+                {t.cases.linkAction}
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => setShowPicker(true)}
+              >
+                {t.cases.openPicker}
+              </Button>
+            </div>
           </div>
-          {linkError ? <ErrorBanner message={linkError} /> : null}
-          {linkOk ? (
-            <SoftBanner tone="ok">{t.cases.linkSuccess}</SoftBanner>
-          ) : null}
-          <Button
-            onClick={() => linkDoc.mutate()}
-            disabled={linkDoc.isPending || !linkDocumentId.trim()}
-          >
-            {t.cases.linkAction}
-          </Button>
-        </div>
+        )}
       </Panel>
 
       <Panel>
@@ -504,6 +731,23 @@ export function CaseDetailPage() {
           </ul>
         </Panel>
       </div>
+
+      {showPicker && (
+        <DocumentPickerModal
+          open={showPicker}
+          caseId={caseId}
+          onClose={() => setShowPicker(false)}
+        />
+      )}
+
+      {showEditCase && (
+        <EditCaseModal
+          open={showEditCase}
+          caseItem={data.case}
+          onClose={() => setShowEditCase(false)}
+        />
+      )}
     </div>
   );
 }
+

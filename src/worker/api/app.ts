@@ -13,6 +13,7 @@ import { reviewRoutes } from "./routes/reviews";
 import { ruleRoutes } from "./routes/rules";
 import { auditRoutes } from "./routes/audit";
 import { integrationRoutes } from "./routes/integrations";
+import { userRoutes } from "./routes/users";
 import { fail } from "./response";
 import { logger } from "../utils/logger";
 
@@ -66,6 +67,7 @@ export function createApp() {
   api.route("/", ruleRoutes);
   api.route("/", auditRoutes);
   api.route("/", integrationRoutes);
+  api.route("/", userRoutes);
 
   api.notFound((c) => fail(c, 404, "NOT_FOUND", "API route not found"));
   api.onError((err, c) => {

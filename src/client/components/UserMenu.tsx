@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { useEffect, useId, useRef, useState } from "react";
+import { roleIsAdmin } from "@shared/domain";
 import { appPath } from "../lib/paths";
 import { useI18n } from "../i18n";
 
@@ -106,6 +107,16 @@ export function UserMenu({ user }: { user: SessionUser }) {
             >
               {t.roles.viewProfile}
             </Link>
+            {roleIsAdmin(user.role) ? (
+              <Link
+                to={appPath("/admin")}
+                role="menuitem"
+                className="block rounded-md px-2 py-2 text-sm font-medium text-ink-800 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-900"
+                onClick={() => setOpen(false)}
+              >
+                {t.nav.admin}
+              </Link>
+            ) : null}
           </div>
         </div>
       ) : null}

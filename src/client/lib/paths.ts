@@ -16,5 +16,6 @@ export const LEGACY_APP_SEGMENTS = [
   "review",
   "rules",
   "audit",
+  "admin",
   "settings",
 ] as const;

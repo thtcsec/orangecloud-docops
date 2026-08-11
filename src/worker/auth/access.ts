@@ -4,7 +4,7 @@ import { normalizeRole } from "@shared/domain";
 import { createId, nowIso } from "../utils/id";
 import { ensureDefaultOrganization } from "../db/repositories/organizations";
 import type { OrganizationRow } from "../db/schema/types";
-import { findUserByEmail, upsertLocalUser } from "../db/repositories/users";
+import { findUserByEmail, normalizeUserStatus, upsertLocalUser } from "../db/repositories/users";
 import type { AppPrincipal } from "./principal";
 import { logger } from "../utils/logger";
 
@@ -281,6 +281,11 @@ export async function resolvePrincipal(
       logger.warn("local_dev_auth_enabled_but_no_email");
       return null;
     }
+    const existing = await findUserByEmail(env.DOCOPS_DB, org.id, email);
+    if (existing && normalizeUserStatus(existing.status) === "disabled") {
+      logger.warn("local_user_disabled", { email: existing.email });
+      return null;
+    }
     const role = parseRole(
       env.LOCAL_DEV_AUTH_ROLE ||
         request.headers.get("x-docops-dev-role") ||
@@ -291,19 +296,20 @@ export async function resolvePrincipal(
       request.headers.get("x-docops-dev-name") ||
       email;
     const user = await upsertLocalUser(env.DOCOPS_DB, {
-      id: createId("usr"),
+      id: existing?.id || createId("usr"),
       organizationId: org.id,
       email,
       displayName,
       role,
       now,
+      status: "active",
     });
     return {
       userId: user.id,
       organizationId: org.id,
       email: user.email,
       displayName: user.display_name,
-      role: user.role,
+      role: normalizeRole(user.role),
       authSource: "local_dev",
     };
   }
@@ -328,9 +334,10 @@ export async function resolvePrincipal(
       displayName: identity.name || identity.email,
       role: shouldBeAdmin ? "admin" : "viewer",
       now,
+      status: "active",
     });
-  } else if (shouldBeAdmin && normalizeRole(user.role) !== "admin") {
-    // Always re-assert bootstrap admins (fixes stale viewer rows).
+  } else if (shouldBeAdmin) {
+    // Always re-assert bootstrap admins (fixes stale viewer / disabled rows).
     user = await upsertLocalUser(env.DOCOPS_DB, {
       id: user.id,
       organizationId: org.id,
@@ -338,10 +345,20 @@ export async function resolvePrincipal(
       displayName: identity.name || user.display_name,
       role: "admin",
       now,
+      status: "active",
     });
   } else {
-    // Normalize role from D1 in case of legacy casing.
-    user = { ...user, role: normalizeRole(user.role) };
+    // Keep admin-assigned role/status; only normalize casing.
+    user = {
+      ...user,
+      role: normalizeRole(user.role),
+      status: normalizeUserStatus(user.status),
+    };
+  }
+
+  if (normalizeUserStatus(user.status) === "disabled") {
+    logger.warn("access_user_disabled", { email: user.email });
+    return null;
   }
 
   return {

@@ -31,6 +31,10 @@ export function canManageIntegrations(role: UserRole): boolean {
   return roleIsAdmin(role);
 }
 
+export function canManageUsers(role: UserRole): boolean {
+  return roleIsAdmin(role);
+}
+
 export function canMutateCases(role: UserRole): boolean {
   return roleCanUpload(role);
 }

@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
-import { normalizeRole } from "@shared/domain";
+import { Link } from "react-router-dom";
+import { normalizeRole, roleIsAdmin } from "@shared/domain";
 import { apiGet } from "../../lib/api";
+import { appPath } from "../../lib/paths";
 import {
   DetailSkeleton,
   PageHeader,
@@ -86,6 +88,14 @@ export function ProfilePage() {
             <p className="border-t border-slate-100 pt-3 text-xs leading-relaxed text-ink-500 dark:border-slate-800">
               {t.roles.manageHint}
             </p>
+            {roleIsAdmin(role) ? (
+              <Link
+                to={appPath("/admin")}
+                className="inline-flex text-sm font-medium text-accent-700 hover:underline dark:text-accent-400"
+              >
+                {t.roles.manageUsersLink}
+              </Link>
+            ) : null}
           </dl>
         </Panel>
 

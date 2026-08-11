@@ -2,6 +2,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { roleIsAdmin } from "@shared/domain";
 import { apiGet, apiPostJson, apiPutJson } from "../../lib/api";
+import { appPath } from "../../lib/paths";
+import { ConfirmDialog } from "../../components/ConfirmDialog";
 import {
   Button,
   CardsSkeleton,
@@ -34,6 +36,7 @@ export function IntegrationsPage() {
   const [webhookUrl, setWebhookUrl] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [confirmClear, setConfirmClear] = useState(false);
 
   const session = useQuery({
     queryKey: ["session"],
@@ -61,6 +64,7 @@ export function IntegrationsPage() {
       ),
     onSuccess: (data) => {
       setError(null);
+      setConfirmClear(false);
       setMessage(
         data.connected
           ? t.integrations.erpSaved
@@ -112,6 +116,8 @@ export function IntegrationsPage() {
       <PageHeader
         title={t.integrations.title}
         description={t.integrations.description}
+        backTo={isAdmin ? appPath("/admin") : undefined}
+        backLabel={isAdmin ? t.nav.admin : undefined}
       />
 
       <Panel className="mb-4 px-4 py-3 text-sm text-ink-500">
@@ -194,7 +200,7 @@ export function IntegrationsPage() {
                         {item.connected ? (
                           <Button
                             variant="secondary"
-                            onClick={() => save.mutate("")}
+                            onClick={() => setConfirmClear(true)}
                             disabled={save.isPending}
                           >
                             {t.integrations.erpClear}
@@ -219,6 +225,18 @@ export function IntegrationsPage() {
           );
         })}
       </div>
+
+      <ConfirmDialog
+        open={confirmClear}
+        title={t.integrations.erpClearConfirmTitle}
+        message={t.integrations.erpClearConfirmBody}
+        confirmLabel={t.integrations.erpClear}
+        cancelLabel={t.common.cancel}
+        danger
+        busy={save.isPending}
+        onCancel={() => setConfirmClear(false)}
+        onConfirm={() => save.mutate("")}
+      />
     </div>
   );
 }

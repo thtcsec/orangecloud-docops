@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { apiGet, apiPostJson } from "../../lib/api";
 import { formatDate } from "../../lib/format";
 import { appPath } from "../../lib/paths";
+import { ConfirmDialog } from "../../components/ConfirmDialog";
 import {
   Button,
   EmptyState,
@@ -48,6 +49,9 @@ export function ReviewPage() {
   const [comment, setComment] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [pendingDecision, setPendingDecision] = useState<
+    "approved" | "rejected" | "correction_requested" | null
+  >(null);
 
   const query = useQuery({
     queryKey: ["reviews", "open"],
@@ -73,6 +77,7 @@ export function ReviewPage() {
       setComment("");
       setSelectedId(null);
       setError(null);
+      setPendingDecision(null);
       if (variables.decision === "approved") {
         if (data.exportStatus === "exported") {
           setSuccess(t.review.approveExported);
@@ -212,45 +217,21 @@ export function ReviewPage() {
 
               <div className="flex flex-wrap gap-2">
                 <Button
-                  onClick={() =>
-                    decision.mutate({
-                      reviewTaskId: selected.id,
-                      decision: "approved",
-                      comment,
-                      documentId: selected.document_id,
-                      caseId: selected.case_id,
-                    })
-                  }
+                  onClick={() => setPendingDecision("approved")}
                   disabled={decision.isPending}
                 >
                   {t.review.approve}
                 </Button>
                 <Button
                   variant="danger"
-                  onClick={() =>
-                    decision.mutate({
-                      reviewTaskId: selected.id,
-                      decision: "rejected",
-                      comment,
-                      documentId: selected.document_id,
-                      caseId: selected.case_id,
-                    })
-                  }
+                  onClick={() => setPendingDecision("rejected")}
                   disabled={decision.isPending}
                 >
                   {t.review.reject}
                 </Button>
                 <Button
                   variant="secondary"
-                  onClick={() =>
-                    decision.mutate({
-                      reviewTaskId: selected.id,
-                      decision: "correction_requested",
-                      comment,
-                      documentId: selected.document_id,
-                      caseId: selected.case_id,
-                    })
-                  }
+                  onClick={() => setPendingDecision("correction_requested")}
                   disabled={decision.isPending}
                 >
                   {t.review.correction}
@@ -260,6 +241,65 @@ export function ReviewPage() {
           )}
         </Panel>
       </div>
+
+      <ConfirmDialog
+        open={pendingDecision === "approved"}
+        title={t.review.approveConfirmTitle}
+        message={t.review.approveConfirmBody}
+        confirmLabel={t.review.approve}
+        cancelLabel={t.common.cancel}
+        busy={decision.isPending}
+        onCancel={() => setPendingDecision(null)}
+        onConfirm={() => {
+          if (!selected) return;
+          decision.mutate({
+            reviewTaskId: selected.id,
+            decision: "approved",
+            comment,
+            documentId: selected.document_id,
+            caseId: selected.case_id,
+          });
+        }}
+      />
+      <ConfirmDialog
+        open={pendingDecision === "rejected"}
+        title={t.review.rejectConfirmTitle}
+        message={t.review.rejectConfirmBody}
+        confirmLabel={t.review.reject}
+        cancelLabel={t.common.cancel}
+        danger
+        busy={decision.isPending}
+        onCancel={() => setPendingDecision(null)}
+        onConfirm={() => {
+          if (!selected) return;
+          decision.mutate({
+            reviewTaskId: selected.id,
+            decision: "rejected",
+            comment,
+            documentId: selected.document_id,
+            caseId: selected.case_id,
+          });
+        }}
+      />
+      <ConfirmDialog
+        open={pendingDecision === "correction_requested"}
+        title={t.review.correctionConfirmTitle}
+        message={t.review.correctionConfirmBody}
+        confirmLabel={t.review.correction}
+        cancelLabel={t.common.cancel}
+        busy={decision.isPending}
+        onCancel={() => setPendingDecision(null)}
+        onConfirm={() => {
+          if (!selected) return;
+          decision.mutate({
+            reviewTaskId: selected.id,
+            decision: "correction_requested",
+            comment,
+            documentId: selected.document_id,
+            caseId: selected.case_id,
+          });
+        }}
+      />
     </div>
   );
 }

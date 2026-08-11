@@ -1,23 +1,34 @@
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
-import { apiFetchBlob, apiGet, apiPostJson } from "../../lib/api";
+import { DOCUMENT_TYPES, roleCanUpload } from "@shared/domain";
+import { apiFetchBlob, apiGet, apiPatchJson, apiPostJson } from "../../lib/api";
 import { formatAuditAction } from "../../lib/audit-labels";
+import {
+  formatFieldLabel,
+  formatRuleStatusLabel,
+  isInformationalRuleStatus,
+} from "../../lib/field-labels";
 import { formatBytes, formatDate } from "../../lib/format";
 import { appPath } from "../../lib/paths";
 import { isDocumentInFlight, isRunInFlight } from "../../lib/processing";
+import { ConfirmDialog } from "../../components/ConfirmDialog";
 import {
   Button,
   DetailSkeleton,
   EmptyState,
   ErrorBanner,
+  Field,
+  Input,
   PageHeader,
   Panel,
   PanelHeader,
   QueryErrorState,
+  Select,
   SoftBanner,
   StatusBadge,
 } from "../../components/ui";
+
 import { useI18n } from "../../i18n";
 
 type PreviewKind = "pdf" | "xml" | "unsupported";
@@ -61,9 +72,11 @@ type Detail = {
     normalized_value: string | null;
     value_type: string | null;
     confidence: number | null;
+    source_kind: string | null;
     source_reference: string | null;
     provider: string | null;
   }>;
+
   ruleResults: Array<{
     id: string;
     rule_key: string;
@@ -202,10 +215,272 @@ function DocumentPreviewPanel({
   );
 }
 
+type EditDocumentModalProps = {
+  open: boolean;
+  doc: {
+    id: string;
+    display_name: string;
+    document_type: string;
+    case_id: string | null;
+  };
+  onClose: () => void;
+  onSuccess?: () => void;
+};
+
+function EditDocumentModal({ open, doc, onClose, onSuccess }: EditDocumentModalProps) {
+  const { t } = useI18n();
+  const qc = useQueryClient();
+  const [displayName, setDisplayName] = useState(doc.display_name);
+  const [documentType, setDocumentType] = useState(doc.document_type);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const mutation = useMutation({
+    mutationFn: () =>
+      apiPatchJson<{ document: Detail["document"] }>(`/api/documents/${doc.id}`, {
+        displayName: displayName.trim(),
+        documentType,
+      }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["document", doc.id] });
+      void qc.invalidateQueries({ queryKey: ["documents"] });
+      onSuccess?.();
+      onClose();
+    },
+    onError: (err) => {
+      setErrorMsg(err instanceof Error ? err.message : t.common.actionFailed);
+    },
+  });
+
+  if (!open) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-[80] flex items-end justify-center bg-slate-950/50 p-4 backdrop-blur-sm sm:items-center"
+      role="presentation"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget && !mutation.isPending) onClose();
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900"
+      >
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3 dark:border-slate-800">
+          <h2 className="text-lg font-semibold text-ink-950">
+            {t.documentDetail.editDocumentTitle}
+          </h2>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={mutation.isPending}
+            className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+          >
+            ✕
+          </button>
+        </div>
+
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!displayName.trim()) return;
+            mutation.mutate();
+          }}
+          className="mt-4 space-y-3"
+        >
+          {errorMsg && (
+            <div className="rounded bg-rose-50 p-2 text-xs text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">
+              {errorMsg}
+            </div>
+          )}
+
+          <Field label={t.documentDetail.displayName}>
+            <Input
+              value={displayName}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                setDisplayName(e.target.value)
+              }
+              required
+            />
+          </Field>
+
+          <Field label={t.documentDetail.documentType}>
+            <Select
+              value={documentType}
+              onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                setDocumentType(e.target.value)
+              }
+            >
+              {DOCUMENT_TYPES.map((type) => (
+                <option key={type} value={type}>
+                  {type}
+                </option>
+              ))}
+            </Select>
+          </Field>
+
+          <div className="mt-5 flex justify-end gap-2 border-t border-slate-100 pt-4 dark:border-slate-800">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={onClose}
+              disabled={mutation.isPending}
+            >
+              {t.common.cancel}
+            </Button>
+            <Button type="submit" variant="primary" disabled={mutation.isPending}>
+              {mutation.isPending ? t.common.loading : t.documentDetail.saveChanges}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+type EditFieldModalProps = {
+  open: boolean;
+  documentId: string;
+  field: {
+    id: string;
+    field_name: string;
+    normalized_value: string | null;
+    raw_value: string | null;
+  } | null;
+  onClose: () => void;
+  onSuccess?: () => void;
+};
+
+function EditFieldModal({
+  open,
+  documentId,
+  field,
+  onClose,
+  onSuccess,
+}: EditFieldModalProps) {
+  const { t, locale } = useI18n();
+  const qc = useQueryClient();
+  const [val, setVal] = useState(field?.normalized_value || field?.raw_value || "");
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (field) {
+      setVal(field.normalized_value || field.raw_value || "");
+    }
+  }, [field]);
+
+  const mutation = useMutation({
+    mutationFn: () => {
+      if (!field) throw new Error("No field selected");
+      return apiPatchJson(`/api/documents/${documentId}/fields/${field.id}`, {
+        normalizedValue: val.trim() || null,
+      });
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["document", documentId] });
+      void qc.invalidateQueries({ queryKey: ["audit"] });
+      onSuccess?.();
+      onClose();
+    },
+    onError: (err) => {
+      setErrorMsg(err instanceof Error ? err.message : t.common.actionFailed);
+    },
+  });
+
+  if (!open || !field) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-[80] flex items-end justify-center bg-slate-950/50 p-4 backdrop-blur-sm sm:items-center"
+      role="presentation"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget && !mutation.isPending) onClose();
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-900"
+      >
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3 dark:border-slate-800">
+          <h2 className="text-lg font-semibold text-ink-950">
+            {t.documentDetail.editFieldTitle}
+          </h2>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={mutation.isPending}
+            className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+          >
+            ✕
+          </button>
+        </div>
+
+        <form
+          onSubmit={(e: React.FormEvent) => {
+            e.preventDefault();
+            mutation.mutate();
+          }}
+          className="mt-4 space-y-3"
+        >
+          {errorMsg && (
+            <div className="rounded bg-rose-50 p-2 text-xs text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">
+              {errorMsg}
+            </div>
+          )}
+
+          <div>
+            <span className="text-xs font-semibold text-ink-600">
+              {formatFieldLabel(field.field_name, locale)} ({field.field_name})
+            </span>
+          </div>
+
+          <Field label={t.documentDetail.fieldValue}>
+            <Input
+              value={val}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                setVal(e.target.value)
+              }
+              placeholder="e.g. 15000000"
+              autoFocus
+            />
+          </Field>
+
+
+          <div className="mt-5 flex justify-end gap-2 border-t border-slate-100 pt-4 dark:border-slate-800">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={onClose}
+              disabled={mutation.isPending}
+            >
+              {t.common.cancel}
+            </Button>
+            <Button type="submit" variant="primary" disabled={mutation.isPending}>
+              {mutation.isPending ? t.common.loading : t.documentDetail.saveChanges}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export function DocumentDetailPage() {
   const { t, locale } = useI18n();
   const { documentId = "" } = useParams();
   const qc = useQueryClient();
+
+  const [showEditDoc, setShowEditDoc] = useState(false);
+  const [editingField, setEditingField] = useState<Detail["extractedFields"][0] | null>(null);
+
+  const session = useQuery({
+    queryKey: ["session"],
+    queryFn: () => apiGet<{ user: { role: string } }>("/api/session"),
+  });
+
+  const canEdit = roleCanUpload(session.data?.user.role);
+
   const query = useQuery({
     queryKey: ["document", documentId],
     queryFn: () => apiGet<Detail>(`/api/documents/${documentId}`),
@@ -221,10 +496,12 @@ export function DocumentDetailPage() {
     },
   });
 
+  const [confirmReprocess, setConfirmReprocess] = useState(false);
   const reprocess = useMutation({
     mutationFn: () =>
       apiPostJson(`/api/documents/${documentId}/reprocess`, {}),
     onSuccess: () => {
+      setConfirmReprocess(false);
       void qc.invalidateQueries({ queryKey: ["document", documentId] });
       void qc.invalidateQueries({ queryKey: ["documents"] });
       void qc.invalidateQueries({ queryKey: ["dashboard"] });
@@ -250,6 +527,7 @@ export function DocumentDetailPage() {
   const status = data.document.status;
   const previewKind = data.preview.kind || "unsupported";
 
+
   return (
     <div className="space-y-4">
       <PageHeader
@@ -259,6 +537,14 @@ export function DocumentDetailPage() {
         backLabel={t.common.backToDocuments}
         actions={
           <>
+            {canEdit && (
+              <Button
+                variant="secondary"
+                onClick={() => setShowEditDoc(true)}
+              >
+                ✏️ {t.documentDetail.editDocument}
+              </Button>
+            )}
             <a
               href={`/api/documents/${documentId}/download`}
               className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium transition hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-900 dark:hover:bg-slate-800"
@@ -267,7 +553,7 @@ export function DocumentDetailPage() {
             </a>
             <Button
               variant="secondary"
-              onClick={() => reprocess.mutate()}
+              onClick={() => setConfirmReprocess(true)}
               disabled={reprocess.isPending || busy}
             >
               {busy
@@ -429,6 +715,9 @@ export function DocumentDetailPage() {
                 : t.documentDetail.extractedSub
             }
           />
+          <p className="border-b border-slate-100 px-4 py-2 text-xs leading-relaxed text-ink-500 dark:border-slate-800">
+            {t.documentDetail.extractionHint}
+          </p>
           {data.extractedFields.length === 0 ? (
             <EmptyState
               title={t.documentDetail.extractionUnavailableTitle}
@@ -436,34 +725,52 @@ export function DocumentDetailPage() {
             />
           ) : (
             <ul className="divide-y divide-slate-100 dark:divide-slate-800">
-              {data.extractedFields.map((field) => (
-                <li key={field.id} className="px-4 py-3 text-sm">
-                  <div className="flex flex-wrap items-baseline justify-between gap-2">
-                    <span className="font-mono text-xs text-ink-500">
-                      {field.field_name}
-                    </span>
-                    {field.confidence != null ? (
-                      <span className="text-xs text-ink-500">
-                        {Math.round(field.confidence * 100)}%
-                      </span>
-                    ) : null}
-                  </div>
-                  <div className="mt-1 font-medium text-ink-900">
-                    {field.normalized_value || field.raw_value || t.common.none}
-                  </div>
-                  {field.source_reference ? (
-                    <div className="mt-0.5 text-xs text-ink-500">
-                      &lt;{field.source_reference}&gt;
-                      {field.provider ? ` · ${field.provider}` : ""}
+              {data.extractedFields.map((field) => {
+                const isOverridden = field.source_kind === "manual_override";
+                return (
+                  <li key={field.id} className="px-4 py-3 text-sm">
+                    <div className="flex flex-wrap items-baseline justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-ink-800">
+                          {formatFieldLabel(field.field_name, locale)}
+                        </span>
+                        {isOverridden && (
+                          <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
+                            {t.documentDetail.manualOverrideBadge}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {field.confidence != null ? (
+                          <span className="text-xs text-ink-500">
+                            {Math.round(field.confidence * 100)}%
+                          </span>
+                        ) : null}
+                        {canEdit && (
+                          <button
+                            type="button"
+                            onClick={() => setEditingField(field)}
+                            className="text-xs font-medium text-accent-600 hover:underline dark:text-accent-400"
+                          >
+                            ✏️ {t.documentDetail.editField}
+                          </button>
+                        )}
+                      </div>
                     </div>
-                  ) : null}
-                </li>
-              ))}
+                    <div className="mt-1 text-base font-semibold text-ink-950">
+                      {field.normalized_value || field.raw_value || t.common.none}
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </Panel>
         <Panel>
-          <PanelHeader title={t.documentDetail.ruleResults} />
+          <PanelHeader
+            title={t.documentDetail.ruleResults}
+            subtitle={t.documentDetail.ruleResultsSub}
+          />
           {data.ruleResults.length === 0 ? (
             <EmptyState
               title={t.documentDetail.noRulesTitle}
@@ -471,15 +778,39 @@ export function DocumentDetailPage() {
             />
           ) : (
             <ul className="divide-y divide-slate-100">
-              {data.ruleResults.map((r) => (
-                <li key={r.id} className="px-4 py-3 text-sm">
-                  <div className="flex items-center gap-2">
-                    <StatusBadge status={r.status} />
-                    <span className="font-medium">{r.rule_key}</span>
-                  </div>
-                  <p className="mt-1 text-ink-500">{r.explanation}</p>
-                </li>
-              ))}
+              {([...data.ruleResults].sort((a, b) => {
+                const rank = (s: string) =>
+                  isInformationalRuleStatus(s) ? 1 : 0;
+                return rank(a.status) - rank(b.status);
+              })).map((r) => {
+                const copy =
+                  t.rules.catalog[r.rule_key as keyof typeof t.rules.catalog];
+                const deferred = isInformationalRuleStatus(r.status);
+                return (
+                  <li
+                    key={r.id}
+                    className={`px-4 py-3 text-sm ${deferred ? "opacity-80" : ""}`}
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <StatusBadge
+                        status={r.status}
+                        label={formatRuleStatusLabel(r.status, locale)}
+                      />
+                      <span className="font-medium text-ink-900">
+                        {copy?.name || r.rule_key}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-ink-600">
+                      {r.explanation || copy?.description || ""}
+                    </p>
+                    {deferred ? (
+                      <p className="mt-1 text-xs text-ink-400">
+                        {t.documentDetail.ruleDeferred}
+                      </p>
+                    ) : null}
+                  </li>
+                );
+              })}
             </ul>
           )}
         </Panel>
@@ -516,14 +847,42 @@ export function DocumentDetailPage() {
                   {formatAuditAction(e.action, locale)}
                 </div>
                 <div className="text-xs text-ink-500">
-                  <span className="font-mono">{e.action}</span> · {e.actor_type}{" "}
-                  · {formatDate(e.created_at)}
+                  {e.actor_type} · {formatDate(e.created_at)}
                 </div>
               </li>
             ))}
           </ul>
         </Panel>
       </div>
+
+      <ConfirmDialog
+        open={confirmReprocess}
+        title={t.documentDetail.reprocessConfirmTitle}
+        message={t.documentDetail.reprocessConfirmBody}
+        confirmLabel={t.documentDetail.reprocess}
+        cancelLabel={t.common.cancel}
+        busy={reprocess.isPending}
+        onCancel={() => setConfirmReprocess(false)}
+        onConfirm={() => reprocess.mutate()}
+      />
+
+      {showEditDoc && (
+        <EditDocumentModal
+          open={showEditDoc}
+          doc={data.document}
+          onClose={() => setShowEditDoc(false)}
+        />
+      )}
+
+      {editingField && (
+        <EditFieldModal
+          open={Boolean(editingField)}
+          documentId={documentId}
+          field={editingField}
+          onClose={() => setEditingField(null)}
+        />
+      )}
     </div>
   );
 }
+

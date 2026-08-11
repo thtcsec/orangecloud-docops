@@ -3,7 +3,14 @@ import type { AppVariables } from "../middleware/context";
 import { requireAuth, requireRoles } from "../middleware/auth";
 import { uploadRateLimit } from "../middleware/rate-limit";
 import { fail, ok } from "../response";
-import { documentsQuerySchema, createDocumentSchema, jsonUploadSchema } from "../schemas/common";
+import {
+  documentsQuerySchema,
+  createDocumentSchema,
+  jsonUploadSchema,
+  patchDocumentSchema,
+  patchExtractedFieldSchema,
+  exportDocumentsQuerySchema,
+} from "../schemas/common";
 import { sanitizeFilename } from "../../storage/filename";
 import { uploadDocument } from "../../services/upload";
 import {
@@ -14,17 +21,28 @@ import {
   listExtractedFields,
   listProcessingRuns,
   listVersions,
+  updateDocument,
+  getExtractedFieldById,
+  updateExtractedField,
+  getDocumentsForExport,
 } from "../../db/repositories/documents";
-import { listRuleResultsForDocument } from "../../db/repositories/cases";
+import {
+  clearRuleResultsForDocument,
+  createRuleResult,
+  listRuleResultsForDocument,
+} from "../../db/repositories/cases";
 import { listReviewDecisionsForDocument } from "../../db/repositories/reviews";
 import { appendAuditEvent, listAuditEvents } from "../../domain/audit/service";
 import { canUpload } from "../../auth/principal";
 import { createId, nowIso } from "../../utils/id";
 import { buildIdempotencyKey } from "../../domain/documents/status-machine";
 import { transitionDocumentStatus } from "../../domain/documents/service";
+import { evaluateDocumentRules } from "../../providers/rules";
+import type { ExtractedField } from "../../providers/types";
 import type { DocumentStatus } from "@shared/domain";
 import type { ProcessingQueueMessage } from "@shared/queue";
 import { previewKindFromMimeAndName } from "@shared/preview";
+
 
 export const documentRoutes = new Hono<{
   Bindings: Env;
@@ -415,3 +433,245 @@ documentRoutes.post(
     return ok(c, { queued: true, processingVersion });
   },
 );
+
+documentRoutes.get("/documents/export/csv", requireAuth, async (c) => {
+  const principal = c.get("principal")!;
+  const parsed = exportDocumentsQuerySchema.safeParse(c.req.query());
+  if (!parsed.success) {
+    return fail(c, 400, "VALIDATION_ERROR", "Invalid query parameters", parsed.error.flatten());
+  }
+
+  const items = await getDocumentsForExport(
+    c.env.DOCOPS_DB,
+    principal.organizationId,
+    parsed.data,
+  );
+
+  const escapeCsv = (val: string | null | undefined): string => {
+    if (val == null) return "";
+    const str = String(val);
+    if (str.includes(",") || str.includes('"') || str.includes("\n") || str.includes("\r")) {
+      return `"${str.replace(/"/g, '""')}"`;
+    }
+    return str;
+  };
+
+  const headers = [
+    "Mã chứng từ",
+    "Tên tệp",
+    "Loại chứng từ",
+    "Trạng thái",
+    "Mã hồ sơ",
+    "Nhà cung cấp",
+    "Mã số thuế",
+    "Số hoá đơn",
+    "Ngày hoá đơn",
+    "Tiền trước thuế",
+    "Tiền thuế",
+    "Tổng tiền",
+    "Ngày tải lên",
+    "Người duyệt",
+    "Quyết định",
+    "Ngày duyệt",
+  ];
+
+  const rows = items.map((i) => [
+    escapeCsv(i.id),
+    escapeCsv(i.display_name),
+    escapeCsv(i.document_type),
+    escapeCsv(i.status),
+    escapeCsv(i.case_reference),
+    escapeCsv(i.vendor_name),
+    escapeCsv(i.vendor_tax_id),
+    escapeCsv(i.invoice_number),
+    escapeCsv(i.invoice_date),
+    escapeCsv(i.subtotal),
+    escapeCsv(i.tax_amount),
+    escapeCsv(i.total_amount),
+    escapeCsv(i.created_at),
+    escapeCsv(i.reviewer_email),
+    escapeCsv(i.decision),
+    escapeCsv(i.decided_at),
+  ]);
+
+  const csvContent = "\uFEFF" + [headers.join(","), ...rows.map((r) => r.join(","))].join("\r\n");
+
+  const responseHeaders = new Headers();
+  responseHeaders.set("content-type", "text/csv; charset=utf-8");
+  responseHeaders.set(
+    "content-disposition",
+    `attachment; filename="docops-export-${nowIso().slice(0, 10)}.csv"`,
+  );
+  responseHeaders.set("cache-control", "private, no-store");
+  responseHeaders.set("x-request-id", c.get("requestId"));
+
+  return new Response(csvContent, { status: 200, headers: responseHeaders });
+});
+
+documentRoutes.patch(
+  "/documents/:documentId",
+  requireAuth,
+  requireRoles("admin", "reviewer"),
+  async (c) => {
+    const principal = c.get("principal")!;
+    const documentId = c.req.param("documentId");
+    const doc = await getDocument(
+      c.env.DOCOPS_DB,
+      principal.organizationId,
+      documentId,
+    );
+    if (!doc) return fail(c, 404, "NOT_FOUND", "Document not found");
+
+    const body = await c.req.json().catch(() => null);
+    const parsed = patchDocumentSchema.safeParse(body);
+    if (!parsed.success) {
+      return fail(
+        c,
+        400,
+        "VALIDATION_ERROR",
+        "Invalid request body",
+        parsed.error.flatten(),
+      );
+    }
+
+    const now = nowIso();
+    await updateDocument(c.env.DOCOPS_DB, documentId, {
+      display_name: parsed.data.displayName,
+      document_type: parsed.data.documentType,
+      case_id: parsed.data.caseId,
+      updated_at: now,
+    });
+
+    const updated = await getDocument(
+      c.env.DOCOPS_DB,
+      principal.organizationId,
+      documentId,
+    );
+
+    await appendAuditEvent(c.env.DOCOPS_DB, {
+      organizationId: principal.organizationId,
+      actorType: "user",
+      actorId: principal.userId,
+      action: "document.updated",
+      entityType: "document",
+      entityId: documentId,
+      requestId: c.get("requestId"),
+      metadata: {
+        before: {
+          displayName: doc.display_name,
+          documentType: doc.document_type,
+          caseId: doc.case_id,
+        },
+        after: {
+          displayName: updated?.display_name,
+          documentType: updated?.document_type,
+          caseId: updated?.case_id,
+        },
+      },
+    });
+
+    return ok(c, { document: updated });
+  },
+);
+
+documentRoutes.patch(
+  "/documents/:documentId/fields/:fieldId",
+  requireAuth,
+  requireRoles("admin", "reviewer"),
+  async (c) => {
+    const principal = c.get("principal")!;
+    const documentId = c.req.param("documentId");
+    const fieldId = c.req.param("fieldId");
+
+    const doc = await getDocument(
+      c.env.DOCOPS_DB,
+      principal.organizationId,
+      documentId,
+    );
+    if (!doc) return fail(c, 404, "NOT_FOUND", "Document not found");
+
+    const field = await getExtractedFieldById(c.env.DOCOPS_DB, fieldId);
+    if (!field) return fail(c, 404, "NOT_FOUND", "Extracted field not found");
+
+    const body = await c.req.json().catch(() => null);
+    const parsed = patchExtractedFieldSchema.safeParse(body);
+    if (!parsed.success) {
+      return fail(
+        c,
+        400,
+        "VALIDATION_ERROR",
+        "Invalid request body",
+        parsed.error.flatten(),
+      );
+    }
+
+    const updatedField = await updateExtractedField(c.env.DOCOPS_DB, fieldId, {
+      normalized_value: parsed.data.normalizedValue,
+      raw_value: parsed.data.rawValue ?? parsed.data.normalizedValue,
+      confidence: 1.0,
+      source_kind: "manual_override",
+    });
+
+    // Re-evaluate document rules with the updated fields!
+    if (doc.current_version_id) {
+      const allFields = await listExtractedFields(
+        c.env.DOCOPS_DB,
+        doc.current_version_id,
+      );
+      const convertedFields: ExtractedField[] = allFields.map((f) => ({
+        fieldName: f.field_name,
+        rawValue: f.raw_value,
+        normalizedValue: f.normalized_value,
+        valueType: (f.value_type as "string" | "number" | "date" | "money") || "string",
+        confidence: f.confidence ?? 1.0,
+        sourceKind: (f.source_kind as "xml" | "heuristic" | "ai" | "none") || "heuristic",
+        sourceReference: f.source_reference ?? undefined,
+      }));
+
+
+      const ruleEval = await evaluateDocumentRules({
+        db: c.env.DOCOPS_DB,
+        organizationId: principal.organizationId,
+        documentId: doc.id,
+        caseId: doc.case_id,
+        fields: convertedFields,
+      });
+
+      await clearRuleResultsForDocument(c.env.DOCOPS_DB, doc.id);
+      const now = nowIso();
+      for (const result of ruleEval.results) {
+        await createRuleResult(c.env.DOCOPS_DB, {
+          id: createId("rr"),
+          case_id: doc.case_id,
+          document_id: doc.id,
+          rule_key: result.ruleKey,
+          rule_version: result.ruleVersion,
+          status: result.status,
+          severity: result.severity,
+          expected_value: result.expectedValue,
+          actual_value: result.actualValue,
+          explanation: result.explanation,
+          created_at: now,
+        });
+      }
+    }
+
+    await appendAuditEvent(c.env.DOCOPS_DB, {
+      organizationId: principal.organizationId,
+      actorType: "user",
+      actorId: principal.userId,
+      action: "document.field.corrected",
+      entityType: "document",
+      entityId: documentId,
+      requestId: c.get("requestId"),
+      metadata: {
+        fieldName: field.field_name,
+        before: field.normalized_value,
+        after: updatedField?.normalized_value,
+      },
+    });
+
+    return ok(c, { field: updatedField });
+  },
+);
+

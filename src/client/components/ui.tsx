@@ -136,6 +136,7 @@ export function Button({
   disabled,
   onClick,
   className = "",
+  autoFocus,
 }: {
   children: ReactNode;
   variant?: "primary" | "secondary" | "danger" | "ghost";
@@ -143,6 +144,7 @@ export function Button({
   disabled?: boolean;
   onClick?: () => void;
   className?: string;
+  autoFocus?: boolean;
 }) {
   const styles = {
     primary:
@@ -157,6 +159,7 @@ export function Button({
       type={type}
       disabled={disabled}
       onClick={onClick}
+      autoFocus={autoFocus}
       className={`inline-flex items-center justify-center rounded-md px-3.5 py-2.5 text-[0.95rem] font-medium transition disabled:cursor-not-allowed ${styles} ${className}`}
     >
       {children}

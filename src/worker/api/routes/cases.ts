@@ -6,16 +6,20 @@ import {
   createCaseSchema,
   linkCaseDocumentSchema,
   paginationSchema,
+  patchCaseSchema,
 } from "../schemas/common";
 import {
   countExceptions,
   createCase,
   getCase,
   linkCaseDocument,
+  listAvailableDocumentsForCase,
   listCaseDocuments,
   listCases,
   listRuleResultsForCase,
+  updateCase,
 } from "../../db/repositories/cases";
+
 import { getDocument, updateDocument } from "../../db/repositories/documents";
 import { appendAuditEvent } from "../../domain/audit/service";
 import { listAuditEvents } from "../../domain/audit/service";
@@ -214,3 +218,91 @@ caseRoutes.post(
     return ok(c, { linked: true }, 201);
   },
 );
+
+caseRoutes.patch(
+  "/cases/:caseId",
+  requireAuth,
+  requireRoles("admin", "reviewer"),
+  async (c) => {
+    const principal = c.get("principal")!;
+    const caseId = c.req.param("caseId");
+    const existing = await getCase(
+      c.env.DOCOPS_DB,
+      principal.organizationId,
+      caseId,
+    );
+    if (!existing) return fail(c, 404, "NOT_FOUND", "Case not found");
+
+    const body = await c.req.json().catch(() => null);
+    const parsed = patchCaseSchema.safeParse(body);
+    if (!parsed.success) {
+      return fail(
+        c,
+        400,
+        "VALIDATION_ERROR",
+        "Invalid request body",
+        parsed.error.flatten(),
+      );
+    }
+
+    const now = nowIso();
+    const updated = await updateCase(
+      c.env.DOCOPS_DB,
+      principal.organizationId,
+      caseId,
+      {
+        reference: parsed.data.reference,
+        vendor_name: parsed.data.vendorName,
+        vendor_tax_id: parsed.data.vendorTaxId,
+        status: parsed.data.status,
+        updated_at: now,
+      },
+    );
+
+    await appendAuditEvent(c.env.DOCOPS_DB, {
+      organizationId: principal.organizationId,
+      actorType: "user",
+      actorId: principal.userId,
+      action: "case.updated",
+      entityType: "case",
+      entityId: caseId,
+      requestId: c.get("requestId"),
+      metadata: {
+        before: {
+          reference: existing.reference,
+          vendorName: existing.vendor_name,
+          vendorTaxId: existing.vendor_tax_id,
+          status: existing.status,
+        },
+        after: {
+          reference: updated?.reference,
+          vendorName: updated?.vendor_name,
+          vendorTaxId: updated?.vendor_tax_id,
+          status: updated?.status,
+        },
+      },
+    });
+
+    return ok(c, { case: updated });
+  },
+);
+
+caseRoutes.get("/cases/:caseId/available-documents", requireAuth, async (c) => {
+  const principal = c.get("principal")!;
+  const caseId = c.req.param("caseId");
+  const existing = await getCase(
+    c.env.DOCOPS_DB,
+    principal.organizationId,
+    caseId,
+  );
+  if (!existing) return fail(c, 404, "NOT_FOUND", "Case not found");
+
+  const items = await listAvailableDocumentsForCase(
+    c.env.DOCOPS_DB,
+    principal.organizationId,
+    caseId,
+  );
+
+  return ok(c, { items });
+});
+

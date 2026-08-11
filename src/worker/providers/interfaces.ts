@@ -93,16 +93,28 @@ export class HeuristicClassifier implements DocumentClassifier {
     ) {
       documentType = "invoice_pdf";
     }
+
+    const likelyQuote =
+      documentType === "invoice_pdf" &&
+      (lower.includes("bao-gia") ||
+        lower.includes("baogia") ||
+        lower.includes("quote") ||
+        lower.includes("estimate") ||
+        lower.includes("quotation"));
+
     return {
       documentType,
       confidence:
         documentType === "invoice_xml"
           ? 0.85
           : documentType === "invoice_pdf"
-            ? 0.55
+            ? likelyQuote
+              ? 0.45
+              : 0.55
             : 0.35,
       provider: "heuristic-filename",
       configured: true,
+      ...(likelyQuote ? { likelyQuote: true } : {}),
     };
   }
 }

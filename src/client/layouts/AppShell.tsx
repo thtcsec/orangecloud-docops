@@ -12,6 +12,7 @@ import {
 } from "../components/HeaderControls";
 import { UserMenu } from "../components/UserMenu";
 import { SiteFooter } from "../components/SiteFooter";
+import { ScrollToTopButton } from "../components/ScrollToTopButton";
 import { QueryErrorState, AppShellSkeleton, UserChipSkeleton } from "../components/ui";
 import { useI18n } from "../i18n";
 
@@ -57,14 +58,14 @@ export function AppShell() {
       },
       { to: appPath("/rules"), label: t.nav.rules, show: true },
       {
-        to: appPath("/audit"),
-        label: t.nav.audit,
+        to: appPath("/admin"),
+        label: t.nav.admin,
         show: roleIsAdmin(role),
       },
       {
         to: appPath("/settings/integrations"),
         label: t.nav.integrations,
-        show: true,
+        show: !roleIsAdmin(role),
       },
     ];
     return items.filter((item) => item.show);
@@ -144,6 +145,7 @@ export function AppShell() {
         </div>
       </main>
       <SiteFooter compact />
+      <ScrollToTopButton />
     </div>
   );
 }

@@ -24,6 +24,7 @@ export type UserRow = {
   email: string;
   display_name: string;
   role: UserRole;
+  status: "active" | "disabled";
   created_at: string;
   updated_at: string;
 };

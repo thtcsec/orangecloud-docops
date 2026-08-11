@@ -94,15 +94,24 @@ export function DocumentsPage() {
         title={t.documents.title}
         description={t.documents.description}
         actions={
-          canUpload ? (
-            <Link
-              to={appPath("/documents/upload")}
-              className="rounded-md bg-accent-600 px-3 py-2 text-sm font-medium text-white"
+          <div className="flex items-center gap-2">
+            <a
+              href={`/api/documents/export/csv${queryString ? `?${queryString}` : ""}`}
+              className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium transition hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-900 dark:hover:bg-slate-800"
             >
-              {t.common.upload}
-            </Link>
-          ) : undefined
+              📥 {t.documents.exportCsv}
+            </a>
+            {canUpload && (
+              <Link
+                to={appPath("/documents/upload")}
+                className="rounded-md bg-accent-600 px-3 py-2 text-sm font-medium text-white hover:bg-accent-500"
+              >
+                {t.common.upload}
+              </Link>
+            )}
+          </div>
         }
+
       />
 
       <Panel className="mb-4 p-4">

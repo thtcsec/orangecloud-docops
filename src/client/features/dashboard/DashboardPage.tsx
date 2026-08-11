@@ -81,9 +81,8 @@ export function DashboardPage() {
         }
       />
 
-      <div className="mb-4 space-y-2">
-        <SoftBanner tone="info">{t.dashboard.useCase}</SoftBanner>
-        <SoftBanner tone="ok">{t.dashboard.useCaseSteps}</SoftBanner>
+      <div className="mb-4">
+        <SoftBanner tone="info">{t.dashboard.useCaseSteps}</SoftBanner>
       </div>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         {cards.map((card) => (

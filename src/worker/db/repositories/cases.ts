@@ -199,3 +199,49 @@ export async function countExceptions(db: Db, caseId: string): Promise<number> {
   );
   return row?.c ?? 0;
 }
+
+export async function updateCase(
+  db: Db,
+  organizationId: string,
+  caseId: string,
+  patch: Partial<Pick<CaseRow, "reference" | "vendor_name" | "vendor_tax_id" | "status" | "updated_at">>,
+): Promise<CaseRow | null> {
+  const fields: string[] = [];
+  const binds: unknown[] = [];
+  for (const [key, value] of Object.entries(patch)) {
+    fields.push(`${key} = ?`);
+    binds.push(value);
+  }
+  if (fields.length === 0) {
+    return getCase(db, organizationId, caseId);
+  }
+  binds.push(caseId, organizationId);
+  await db
+    .prepare(`UPDATE contract_to_pay_cases SET ${fields.join(", ")} WHERE id = ? AND organization_id = ?`)
+    .bind(...binds)
+    .run();
+  return getCase(db, organizationId, caseId);
+}
+
+export async function listAvailableDocumentsForCase(
+  db: Db,
+  organizationId: string,
+  caseId: string,
+  limit = 50,
+): Promise<DocumentRow[]> {
+  // Documents in the organization that are either not linked to this case or have case_id is null
+  return all<DocumentRow>(
+    db
+      .prepare(
+        `SELECT d.* FROM documents d
+         WHERE d.organization_id = ?
+           AND d.id NOT IN (
+             SELECT document_id FROM case_documents WHERE case_id = ?
+           )
+         ORDER BY d.created_at DESC
+         LIMIT ?`,
+      )
+      .bind(organizationId, caseId, limit),
+  );
+}
+

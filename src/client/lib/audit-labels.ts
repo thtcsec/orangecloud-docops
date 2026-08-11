@@ -18,6 +18,9 @@ const ACTION_EN: Record<string, string> = {
   "export.skipped": "Export skipped (webhook not configured)",
   "integration.erp_webhook.updated": "ERP webhook URL updated",
   "integration.erp_webhook.tested": "ERP webhook test sent",
+  "user.created": "User created",
+  "user.updated": "User updated",
+  "user.disabled": "User disabled",
 };
 
 const ACTION_VI: Record<string, string> = {
@@ -38,6 +41,9 @@ const ACTION_VI: Record<string, string> = {
   "export.skipped": "Bỏ qua xuất (chưa cấu hình webhook)",
   "integration.erp_webhook.updated": "Cập nhật URL ERP webhook",
   "integration.erp_webhook.tested": "Đã gửi thử ERP webhook",
+  "user.created": "Đã tạo người dùng",
+  "user.updated": "Đã cập nhật người dùng",
+  "user.disabled": "Đã khoá người dùng",
 };
 
 const ACTOR_TYPE_EN: Record<string, string> = {
@@ -58,6 +64,7 @@ const ENTITY_TYPE_EN: Record<string, string> = {
   review_task: "Review task",
   processing_run: "Processing run",
   integration: "Integration",
+  user: "User",
 };
 
 const ENTITY_TYPE_VI: Record<string, string> = {
@@ -66,6 +73,7 @@ const ENTITY_TYPE_VI: Record<string, string> = {
   review_task: "Nhiệm vụ rà soát",
   processing_run: "Lần xử lý",
   integration: "Tích hợp",
+  user: "Người dùng",
 };
 
 export function formatAuditAction(action: string, locale: string): string {

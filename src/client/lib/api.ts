@@ -207,6 +207,34 @@ export async function apiPutJson<T>(path: string, body: unknown): Promise<T> {
   });
 }
 
+export async function apiPatchJson<T>(path: string, body: unknown): Promise<T> {
+  return withNetworkGuard(async () => {
+    const res = await fetch(path, {
+      method: "PATCH",
+      credentials: "include",
+      headers: {
+        Accept: JSON_ACCEPT,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(body),
+      redirect: "manual",
+    });
+    return parseResponse<T>(res);
+  });
+}
+
+export async function apiDeleteJson<T>(path: string): Promise<T> {
+  return withNetworkGuard(async () => {
+    const res = await fetch(path, {
+      method: "DELETE",
+      credentials: "include",
+      headers: { Accept: JSON_ACCEPT },
+      redirect: "manual",
+    });
+    return parseResponse<T>(res);
+  });
+}
+
 /** Fetch binary/text content (e.g. document preview). Not JSON. */
 export async function apiFetchBlob(path: string): Promise<{
   blob: Blob;
