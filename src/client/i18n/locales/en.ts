@@ -122,7 +122,78 @@ export const en = {
         body: "Every review action, manual override, and approval decision is immutably logged for compliance.",
       },
     ],
+    openConsole: "Open Console",
+    featuresTitle: "Key Enterprise Advantages",
+    featuresSubtitle: "Modern Serverless architecture solving enterprise document reconciliation end-to-end",
+    features: [
+      {
+        icon: "⚡",
+        title: "Ultra-Fast Edge Performance",
+        body: "Runs on Cloudflare Workers globally with sub-50ms response times across 330+ edge locations.",
+      },
+      {
+        icon: "🛡️",
+        title: "Encrypted R2 Object Storage",
+        body: "Original PDF/XML files are securely encrypted in private R2 buckets with no public exposure.",
+      },
+      {
+        icon: "📊",
+        title: "Automated 3-Way Reconciliation",
+        body: "Cross-matches Contracts, Purchase Orders (PO), and electronic Invoices across tax IDs and amounts.",
+      },
+      {
+        icon: "⚖️",
+        title: "Human-in-the-Loop Review",
+        body: "Automation streamlines intake, while final payment authorization remains firmly with designated finance officers.",
+      },
+      {
+        icon: "🔌",
+        title: "Real-Time ERP Webhooks",
+        body: "Automatically dispatch approved JSON payloads to downstream accounting systems (SAP, Oracle, MISA).",
+      },
+      {
+        icon: "📜",
+        title: "Immutable Audit Trail",
+        body: "Complete trace of uploads, edits, and approvals with ISO timestamps and user IDs ready for auditors.",
+      },
+    ],
+    formatsTitle: "Supported Document Formats",
+    formats: [
+      {
+        badge: "XML",
+        title: "Vietnam E-Invoices (XML)",
+        description: "Official General Department of Taxation Circular 78 standard. Extracts Tax IDs, invoice numbers, dates, and amounts.",
+      },
+      {
+        badge: "PDF / OCR",
+        title: "Scanned Invoices & Purchase Orders (PO)",
+        description: "Scanned PDF invoices and purchase orders parsed with high accuracy via Workers AI.",
+      },
+      {
+        badge: "DOCX / PDF",
+        title: "Commercial Contracts & Acceptance Reports",
+        description: "Full-text contract archiving, version management, and seamless linking to payment cases.",
+      },
+    ],
+    faqTitle: "Frequently Asked Questions",
+    faqs: [
+      {
+        q: "Does DocOps replace our existing ERP or core accounting system?",
+        a: "No. DocOps acts as an upstream Document Intake and Compliance Layer. Once documents are approved, structured data is pushed to your ERP via Webhooks.",
+      },
+      {
+        q: "How are enterprise original documents stored and protected?",
+        a: "Files are stored in private, encrypted Cloudflare R2 buckets. Only authorized users with appropriate roles can access or download files via secure signed URLs.",
+      },
+      {
+        q: "How is role-based access control (RBAC) structured?",
+        a: "DocOps provides three clear roles: Administrators manage system configuration and users; Reviewers examine and approve documents; Viewers have read-only audit access.",
+      },
+    ],
+    ctaBottomTitle: "Ready to streamline your Contract-to-Pay workflow?",
+    ctaBottomSubtitle: "Experience the next-generation document operations platform built on Cloudflare Serverless Edge.",
   },
+
   footer: {
     blurb:
       "OrangeCloud DocOps — Enterprise Contract-to-Pay document operations and audit trail on Cloudflare Edge.",

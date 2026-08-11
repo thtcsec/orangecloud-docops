@@ -95,7 +95,7 @@ export function UserMenu({ user }: { user: SessionUser }) {
             id={menuId}
             role="menu"
             aria-label={t.roles.profileTitle}
-            className="absolute right-0 z-[60] mt-2 w-[280px] rounded-lg border border-slate-200 bg-white p-3 shadow-xl ring-1 ring-black/5 dark:border-slate-600 dark:bg-slate-950 dark:ring-white/10"
+            className="absolute right-0 z-[100] mt-2 w-[280px] rounded-xl border border-slate-200 bg-white p-3 shadow-2xl ring-1 ring-black/5 dark:border-slate-700 dark:bg-slate-900 dark:ring-white/10"
           >
             <div className="flex items-start gap-3 px-1 py-1">
               <span

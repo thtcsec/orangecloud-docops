@@ -124,7 +124,78 @@ export const vi: TranslationSchema = {
         body: "Mọi hành động thẩm định, hiệu chỉnh và quyết định phê duyệt đều được ghi lại vào nhật ký bất biến.",
       },
     ],
+    openConsole: "Vào Bảng điều khiển",
+    featuresTitle: "Thế mạnh công nghệ vượt trội",
+    featuresSubtitle: "Hạ tầng Serverless hiện đại giải quyết triệt để bài toán đối soát chứng từ doanh nghiệp",
+    features: [
+      {
+        icon: "⚡",
+        title: "Tốc độ Edge cực nhanh",
+        body: "Vận hành hoàn toàn trên Cloudflare Workers với độ trễ phản hồi <50ms trên 330+ thành phố toàn cầu.",
+      },
+      {
+        icon: "🛡️",
+        title: "Bảo mật lưu trữ R2",
+        body: "Tệp gốc PDF/XML được lưu trữ mã hóa riêng tư trên R2 Storage, tuyệt đối không lộ bucket công khai ra Internet.",
+      },
+      {
+        icon: "📊",
+        title: "Đối soát 3 bên tự động (3-Way Match)",
+        body: "So khớp chéo thông minh giữa Hợp đồng kinh tế, Đơn đặt hàng PO và Hóa đơn điện tử theo mã số thuế và số tiền.",
+      },
+      {
+        icon: "⚖️",
+        title: "Thẩm định có sự tham gia của con người",
+        body: "Tự động hóa hỗ trợ rà soát, quyền phê duyệt chi tiền cuối cùng luôn thuộc về kế toán trưởng có thẩm quyền.",
+      },
+      {
+        icon: "🔌",
+        title: "ERP Webhook tức thời",
+        body: "Tự động POST dữ liệu JSON siêu dữ liệu đã duyệt sang hệ thống kế toán hoặc ERP hiện hữu của doanh nghiệp.",
+      },
+      {
+        icon: "📜",
+        title: "Nhật ký kiểm toán bất biến",
+        body: "Lưu vết toàn bộ thao tác thêm, sửa, duyệt kèm mốc thời gian ISO và ID người dùng để sẵn sàng cho kỳ kiểm toán.",
+      },
+    ],
+    formatsTitle: "Định dạng chứng từ được hỗ trợ toàn diện",
+    formats: [
+      {
+        badge: "XML",
+        title: "Hóa đơn điện tử Việt Nam (XML)",
+        description: "Chuẩn Tổng cục Thuế theo Thông tư 78/2021/TT-BTC. Tự động bóc tách MST, ký hiệu mẫu số, ngày lập và tổng tiền hàng.",
+      },
+      {
+        badge: "PDF / OCR",
+        title: "Hóa đơn quét & Đơn đặt hàng (PO)",
+        description: "Tệp PDF hoặc hình ảnh hóa đơn quét, trích xuất dữ liệu tự động với độ chính xác cao nhờ Workers AI.",
+      },
+      {
+        badge: "DOCX / PDF",
+        title: "Hợp đồng kinh tế & Biên bản nghiệm thu",
+        description: "Lưu trữ toàn văn bản gốc, quản lý phiên bản và liên kết chặt chẽ vào hồ sơ thanh toán C2P.",
+      },
+    ],
+    faqTitle: "Câu hỏi thường gặp",
+    faqs: [
+      {
+        q: "DocOps có thay thế phần mềm kế toán hoặc hệ thống ERP của doanh nghiệp không?",
+        a: "Không. DocOps đóng vai trò là tầng tăng tốc và kiểm soát chứng từ đầu vào (Document Intake & Compliance Layer). Sau khi chứng từ được phê duyệt, hệ thống tự động đẩy dữ liệu sang ERP qua Webhook.",
+      },
+      {
+        q: "Tệp gốc của doanh nghiệp được lưu trữ và bảo vệ như thế nào?",
+        a: "Tệp gốc PDF/XML được lưu trữ mã hóa riêng tư trên Cloudflare R2. Chỉ những người dùng đã xác thực với vai trò hợp lệ mới có thể xem hoặc tải tệp qua URL có chữ ký thời hạn an toàn.",
+      },
+      {
+        q: "Hệ thống phân quyền người dùng như thế nào?",
+        a: "DocOps hỗ trợ 3 cấp vai trò rõ ràng: Quản trị viên (Admin) quản lý toàn diện người dùng và cấu hình; Chuyên viên thẩm định (Reviewer) xử lý hồ sơ và duyệt chứng từ; Người xem (Viewer) chỉ có quyền tra cứu.",
+      },
+    ],
+    ctaBottomTitle: "Sẵn sàng tối ưu hóa dòng chứng từ thanh toán của bạn?",
+    ctaBottomSubtitle: "Trải nghiệm nền tảng đối soát chứng từ thế hệ mới vận hành trên hạ tầng Cloudflare Serverless Edge.",
   },
+
   footer: {
     blurb:
       "OrangeCloud DocOps — Nền tảng quản trị và kiểm toán chứng từ Contract-to-Pay trên hạ tầng Cloudflare Edge.",
