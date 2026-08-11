@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { useEffect, useId, useRef, useState } from "react";
 import { roleIsAdmin } from "@shared/domain";
 import { appPath } from "../lib/paths";
+import { ConfirmDialog } from "./ConfirmDialog";
 import { useI18n } from "../i18n";
 
 type SessionUser = {
@@ -23,6 +24,8 @@ function initials(name: string, email: string): string {
 export function UserMenu({ user }: { user: SessionUser }) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const menuId = useId();
 
@@ -45,102 +48,122 @@ export function UserMenu({ user }: { user: SessionUser }) {
     };
   }, [open]);
 
-  return (
-    <div className="relative z-50" ref={rootRef}>
-      <button
-        type="button"
-        className="flex max-w-[280px] items-center gap-2.5 rounded-md border border-slate-200/80 bg-white px-2.5 py-1.5 text-left transition hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:hover:bg-slate-800"
-        aria-expanded={open}
-        aria-controls={menuId}
-        onClick={() => setOpen((v) => !v)}
-      >
-        <span
-          className="flex size-8 shrink-0 items-center justify-center rounded-full bg-accent-600 text-xs font-semibold text-white"
-          aria-hidden
-        >
-          {initials(user.displayName, user.email)}
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-medium text-ink-900">
-            {user.displayName}
-          </span>
-          <span className="block truncate text-xs text-ink-500">
-            {roleLabel}
-          </span>
-        </span>
-        <span className="text-ink-400" aria-hidden>
-          ▾
-        </span>
-      </button>
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      await fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch {
+      // Ignore network errors during logout
+    }
+    window.location.assign(appPath("/login"));
+  };
 
-      {open ? (
-        <div
-          id={menuId}
-          role="menu"
-          aria-label={t.roles.profileTitle}
-          className="absolute right-0 z-[60] mt-2 w-[280px] rounded-lg border border-slate-200 bg-white p-3 shadow-xl ring-1 ring-black/5 dark:border-slate-600 dark:bg-slate-950 dark:ring-white/10"
+  return (
+    <>
+      <div className="relative z-50" ref={rootRef}>
+        <button
+          type="button"
+          className="flex max-w-[280px] items-center gap-2.5 rounded-md border border-slate-200/80 bg-white px-2.5 py-1.5 text-left transition hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:hover:bg-slate-800"
+          aria-expanded={open}
+          aria-controls={menuId}
+          onClick={() => setOpen((v) => !v)}
         >
-          <div className="flex items-start gap-3 px-1 py-1">
-            <span
-              className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent-600 text-xs font-semibold text-white"
-              aria-hidden
-            >
-              {initials(user.displayName, user.email)}
+          <span
+            className="flex size-8 shrink-0 items-center justify-center rounded-full bg-accent-600 text-xs font-semibold text-white"
+            aria-hidden
+          >
+            {initials(user.displayName, user.email)}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-sm font-medium text-ink-900">
+              {user.displayName}
             </span>
-            <div className="min-w-0">
-              <div className="truncate text-sm font-semibold text-ink-950">
-                {user.displayName}
-              </div>
-              <div className="truncate text-xs text-ink-500">{user.email}</div>
-              <div className="mt-1 text-xs font-medium text-ink-700">
-                {roleLabel}
+            <span className="block truncate text-xs text-ink-500">
+              {roleLabel}
+            </span>
+          </span>
+          <span className="text-ink-400" aria-hidden>
+            ▾
+          </span>
+        </button>
+
+        {open ? (
+          <div
+            id={menuId}
+            role="menu"
+            aria-label={t.roles.profileTitle}
+            className="absolute right-0 z-[60] mt-2 w-[280px] rounded-lg border border-slate-200 bg-white p-3 shadow-xl ring-1 ring-black/5 dark:border-slate-600 dark:bg-slate-950 dark:ring-white/10"
+          >
+            <div className="flex items-start gap-3 px-1 py-1">
+              <span
+                className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent-600 text-xs font-semibold text-white"
+                aria-hidden
+              >
+                {initials(user.displayName, user.email)}
+              </span>
+              <div className="min-w-0">
+                <div className="truncate text-sm font-semibold text-ink-950">
+                  {user.displayName}
+                </div>
+                <div className="truncate text-xs text-ink-500">{user.email}</div>
+                <div className="mt-1 text-xs font-medium text-ink-700">
+                  {roleLabel}
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="mt-3 border-t border-slate-100 pt-2 dark:border-slate-800">
-            <Link
-              to={appPath("/settings/profile")}
-              role="menuitem"
-              className="block rounded-md px-2 py-2 text-sm font-medium text-accent-700 hover:bg-accent-50 dark:text-accent-400 dark:hover:bg-slate-900"
-              onClick={() => setOpen(false)}
-            >
-              {t.roles.viewProfile}
-            </Link>
-            {roleIsAdmin(user.role) ? (
+            <div className="mt-3 border-t border-slate-100 pt-2 dark:border-slate-800">
               <Link
-                to={appPath("/admin")}
+                to={appPath("/settings/profile")}
                 role="menuitem"
-                className="block rounded-md px-2 py-2 text-sm font-medium text-ink-800 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-900"
+                className="block rounded-md px-2 py-2 text-sm font-medium text-accent-700 hover:bg-accent-50 dark:text-accent-400 dark:hover:bg-slate-900"
                 onClick={() => setOpen(false)}
               >
-                {t.nav.admin}
+                {t.roles.viewProfile}
               </Link>
-            ) : null}
+              {roleIsAdmin(user.role) ? (
+                <Link
+                  to={appPath("/admin")}
+                  role="menuitem"
+                  className="block rounded-md px-2 py-2 text-sm font-medium text-ink-800 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-900"
+                  onClick={() => setOpen(false)}
+                >
+                  {t.nav.admin}
+                </Link>
+              ) : null}
 
-            <button
-              type="button"
-              role="menuitem"
-              onClick={async () => {
-                setOpen(false);
-                try {
-                  await fetch("/api/auth/logout", {
-                    method: "POST",
-                    credentials: "include",
-                  });
-                } catch {
-                  // Ignore network errors on logout
-                }
-                window.location.assign(appPath("/login"));
-              }}
-              className="mt-1 block w-full rounded-md px-2 py-2 text-left text-sm font-medium text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/30"
-            >
-              🚪 {t.auth.logout}
-            </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setOpen(false);
+                  setShowLogoutConfirm(true);
+                }}
+                className="mt-1 block w-full rounded-md px-2 py-2 text-left text-sm font-medium text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/30"
+              >
+                🚪 {t.auth.logout}
+              </button>
+            </div>
           </div>
-        </div>
-      ) : null}
-    </div>
+        ) : null}
+      </div>
+
+      <ConfirmDialog
+        open={showLogoutConfirm}
+        title={t.auth.logoutConfirmTitle}
+        message={t.auth.logoutConfirmBody}
+        confirmLabel={t.auth.logout}
+        cancelLabel={t.common.cancel}
+        danger
+        busy={isLoggingOut}
+        onCancel={() => setShowLogoutConfirm(false)}
+        onConfirm={() => void handleLogout()}
+      />
+    </>
   );
 }
+
 
