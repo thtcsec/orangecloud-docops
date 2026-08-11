@@ -177,9 +177,10 @@ export const en = {
     viewProfile: "View profile & permissions",
     organizationLabel: "Organization ID",
     roleLabel: "Role",
-    signInLabel: "Signed in with",
+    signInLabel: "Signed in via",
     authAccess: "Cloudflare Access",
     authLocal: "Local development",
+    authDirect: "Email & Password",
     manageHint:
       "Organization admins control roles from Users. New Access users start as Viewer unless pre-provisioned or listed as a bootstrap admin.",
     manageUsersLink: "Open Admin → Users",

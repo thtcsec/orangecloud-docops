@@ -49,9 +49,12 @@ export function ProfilePage() {
   const roleSummary = t.roles.summaries[roleKey] || t.roles.summaries.viewer;
   const capabilities = t.roles.capabilities[roleKey] || t.roles.capabilities.viewer;
   const authLabel =
-    user.authSource === "cloudflare_access"
-      ? t.roles.authAccess
-      : t.roles.authLocal;
+    user.authSource === "direct_session"
+      ? t.roles.authDirect
+      : user.authSource === "cloudflare_access"
+        ? t.roles.authAccess
+        : t.roles.authLocal;
+
 
   return (
     <div>

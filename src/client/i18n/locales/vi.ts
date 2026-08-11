@@ -183,7 +183,9 @@ export const vi: TranslationSchema = {
     signInLabel: "Đăng nhập qua",
     authAccess: "Cloudflare Access",
     authLocal: "Môi trường local",
+    authDirect: "Email & Mật khẩu",
     manageHint:
+
       "Admin tổ chức quản lý vai trò tại trang Người dùng. Người Access mới mặc định Viewer trừ khi được pre-provision hoặc bootstrap admin.",
     manageUsersLink: "Mở Quản trị → Người dùng",
     capabilitiesTitle: "Bạn được làm gì",
