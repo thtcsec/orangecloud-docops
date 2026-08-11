@@ -10,9 +10,11 @@ import {
   Panel,
   PanelHeader,
   QueryErrorState,
+  SoftBanner,
   StatusBadge,
 } from "../../components/ui";
 import { useI18n } from "../../i18n";
+import { formatAuditAction } from "../../lib/audit-labels";
 
 type DashboardData = {
   stats: {
@@ -33,7 +35,7 @@ type DashboardData = {
 };
 
 export function DashboardPage() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const query = useQuery({
     queryKey: ["dashboard"],
     queryFn: () => apiGet<DashboardData>("/api/dashboard"),
@@ -79,6 +81,10 @@ export function DashboardPage() {
         }
       />
 
+      <div className="mb-4 space-y-2">
+        <SoftBanner tone="info">{t.dashboard.useCase}</SoftBanner>
+        <SoftBanner tone="ok">{t.dashboard.useCaseSteps}</SoftBanner>
+      </div>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         {cards.map((card) => (
           <Panel key={card.label} className="px-4 py-4">
@@ -124,9 +130,11 @@ export function DashboardPage() {
                   className="flex flex-wrap items-center justify-between gap-2 px-4 py-3"
                 >
                   <div>
-                    <div className="font-medium text-ink-900">{event.action}</div>
+                    <div className="font-medium text-ink-900">
+                      {formatAuditAction(event.action, locale)}
+                    </div>
                     <div className="text-sm text-ink-500">
-                      {event.entity_type}:{event.entity_id}
+                      <span className="font-mono text-xs">{event.action}</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 text-sm text-ink-500">

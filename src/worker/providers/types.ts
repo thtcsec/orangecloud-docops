@@ -4,7 +4,7 @@ export type ExtractedField = {
   normalizedValue: string | null;
   valueType: "string" | "number" | "date" | "money";
   confidence: number;
-  sourceKind: "xml" | "heuristic" | "none";
+  sourceKind: "xml" | "heuristic" | "ai" | "none";
   sourceReference?: string;
 };
 

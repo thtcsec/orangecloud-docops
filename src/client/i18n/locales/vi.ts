@@ -148,8 +148,12 @@ export const vi: TranslationSchema = {
   dashboard: {
     title: "Tổng quan",
     description:
-      "Khối lượng chứng từ, trạng thái xử lý, hồ sơ đang mở và hoạt động gần đây.",
+      "Ops Contract-to-Pay: nạp hoá đơn, chạy quy tắc, người duyệt, xuất ERP tuỳ chọn.",
     upload: "Tải chứng từ",
+    useCase:
+      "Bài toán: Pháp chế / Mua sắm / Kế toán gom hợp đồng + PO + hoá đơn trong một hồ sơ, có trích xuất, quy tắc và vết duyệt bất biến — không phải kho file chung chung.",
+    useCaseSteps:
+      "Demo: tạo Hồ sơ → tải PDF hoá đơn (Workers AI) hoặc XML HĐĐT → chờ field + rule → Rà soát → Duyệt (ERP webhook nếu đã cấu hình).",
     totalDocuments: "Chứng từ",
     processing: "Đang xử lý",
     needsReview: "Cần rà soát",
@@ -159,7 +163,7 @@ export const vi: TranslationSchema = {
     recentAuditSub: "Các thao tác đã ghi nhận trong tổ chức này.",
     emptyTitle: "Chưa có chứng từ",
     emptyBody:
-      "Tải PDF hoặc XML hoá đơn để bắt đầu xử lý và hiển thị các chỉ số.",
+      "Tải PDF hoá đơn hoặc XML hoá đơn VN để bắt đầu trích xuất và hiển thị chỉ số.",
     goUpload: "Tải chứng từ",
     noAuditTitle: "Chưa có hoạt động",
     noAuditBody:
@@ -167,8 +171,8 @@ export const vi: TranslationSchema = {
   },
   roles: {
     profileTitle: "Tài khoản",
-    profileDescription: "Thông tin tài khoản và vai trò trong tổ chức.",
-    viewProfile: "Xem hồ sơ",
+    profileDescription: "Vai trò của bạn và những gì được phép làm.",
+    viewProfile: "Xem hồ sơ & quyền",
     organizationLabel: "ID tổ chức",
     roleLabel: "Vai trò",
     signInLabel: "Đăng nhập qua",
@@ -176,6 +180,8 @@ export const vi: TranslationSchema = {
     authLocal: "Môi trường local",
     manageHint:
       "Admin tổ chức quản lý vai trò. Người dùng Access mới mặc định là Viewer, trừ khi được gán bootstrap admin.",
+    capabilitiesTitle: "Bạn được làm gì",
+    capabilitiesSub: "Theo vai trò hiện tại",
     labels: {
       admin: "Admin",
       reviewer: "Reviewer",
@@ -183,10 +189,33 @@ export const vi: TranslationSchema = {
     },
     summaries: {
       admin:
-        "Toàn quyền: tải lên, rà soát, quản lý hồ sơ và xem nhật ký kiểm toán.",
+        "Toàn quyền ops: tải lên, rà soát, hồ sơ, kiểm toán, cấu hình ERP webhook.",
       reviewer:
-        "Được tải lên, rà soát và cập nhật hồ sơ. Không xem nhật ký kiểm toán.",
-      viewer: "Chỉ xem chứng từ, hồ sơ, quy tắc và tổng quan.",
+        "Tải chứng từ, gắn hồ sơ, duyệt/từ chối. Không xem kiểm toán / cấu hình webhook.",
+      viewer:
+        "Chỉ xem: tổng quan, chứng từ, hồ sơ, quy tắc, danh mục tích hợp.",
+    },
+    capabilities: {
+      admin: [
+        "Tải PDF/XML và gắn hàng loạt vào hồ sơ",
+        "Tạo hồ sơ và gắn chứng từ",
+        "Rà soát & duyệt / từ chối / yêu cầu sửa",
+        "Xem nhật ký kiểm toán bất biến",
+        "Cấu hình ERP webhook",
+        "Xử lý lại chứng từ",
+      ],
+      reviewer: [
+        "Tải PDF/XML và gắn hàng loạt vào hồ sơ",
+        "Tạo hồ sơ và gắn chứng từ",
+        "Rà soát & duyệt / từ chối / yêu cầu sửa",
+        "Xử lý lại chứng từ",
+        "Không xem kiểm toán / cấu hình tích hợp",
+      ],
+      viewer: [
+        "Xem tổng quan, chứng từ, hồ sơ, quy tắc",
+        "Tải bản gốc và xem trước",
+        "Không tải lên, rà soát, kiểm toán hay cấu hình tích hợp",
+      ],
     },
   },
   documents: {
@@ -261,7 +290,7 @@ export const vi: TranslationSchema = {
     extractedSubReady: "Parse từ XML hoá đơn Việt Nam.",
     extractionUnavailableTitle: "Chưa có trường trích xuất",
     extractionUnavailableBody:
-      "Tải XML hoá đơn VN để trích xuất. Trích xuất PDF đang trong lộ trình.",
+      "Tải XML hoá đơn VN (parse xác định) hoặc PDF hoá đơn có chữ (Workers AI trên staging/production). PDF chỉ scan ảnh có thể không ra field.",
     ruleResults: "Kết quả quy tắc",
     noRulesTitle: "Chưa có kết quả quy tắc",
     noRulesBody: "Quy tắc chạy sau khi xử lý xong.",
@@ -447,6 +476,8 @@ export const vi: TranslationSchema = {
     available: "Sẵn sàng",
     connected: "Đã kết nối",
     availability: "Chưa khả dụng trong bản hiện tại.",
+    workersAiLive:
+      "Đang chạy trên bản này: PDF hoá đơn được chuyển đổi và trích field khi xử lý.",
     adminOnly: "Chỉ admin được cấu hình tích hợp.",
     erpUrlLabel: "URL webhook",
     erpSave: "Lưu URL",
@@ -463,7 +494,7 @@ export const vi: TranslationSchema = {
       workers_ai: {
         name: "Workers AI",
         description:
-          "Trích xuất trường từ PDF hợp đồng và đơn hàng chưa có cấu trúc.",
+          "PDF hoá đơn: chuyển Markdown rồi trích field (số HĐ, NCC, thuế, tổng) để chạy quy tắc C2P.",
       },
       azure_document_intelligence: {
         name: "Azure Document Intelligence",

@@ -24,6 +24,7 @@ type IntegrationsResponse = {
     connected: boolean;
     configurable: boolean;
     webhookUrlMasked?: string | null;
+    detail?: string | null;
   }>;
 };
 
@@ -123,7 +124,7 @@ export function IntegrationsPage() {
           const isErp = item.key === "erp_webhook";
           const badge = item.connected
             ? t.integrations.connected
-            : item.configurable
+            : item.configurable || item.status === "available"
               ? t.integrations.available
               : t.integrations.planned;
 
@@ -209,7 +210,9 @@ export function IntegrationsPage() {
                 </div>
               ) : (
                 <p className="mt-3 text-xs text-ink-500">
-                  {t.integrations.availability}
+                  {item.key === "workers_ai" && item.connected
+                    ? t.integrations.workersAiLive
+                    : item.detail || t.integrations.availability}
                 </p>
               )}
             </Panel>

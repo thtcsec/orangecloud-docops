@@ -1,5 +1,7 @@
 import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { normalizeRole, roleCanReview, roleIsAdmin } from "@shared/domain";
 import { accessStartUrl } from "../lib/access";
 import { ApiError, apiGet } from "../lib/api";
 import { appPath } from "../lib/paths";
@@ -42,15 +44,31 @@ export function AppShell() {
     retry: 1,
   });
 
-  const nav = [
-    { to: appPath("/dashboard"), label: t.nav.dashboard },
-    { to: appPath("/documents"), label: t.nav.documents },
-    { to: appPath("/cases"), label: t.nav.cases },
-    { to: appPath("/review"), label: t.nav.review },
-    { to: appPath("/rules"), label: t.nav.rules },
-    { to: appPath("/audit"), label: t.nav.audit },
-    { to: appPath("/settings/integrations"), label: t.nav.integrations },
-  ];
+  const role = normalizeRole(session.data?.user.role);
+  const nav = useMemo(() => {
+    const items = [
+      { to: appPath("/dashboard"), label: t.nav.dashboard, show: true },
+      { to: appPath("/documents"), label: t.nav.documents, show: true },
+      { to: appPath("/cases"), label: t.nav.cases, show: true },
+      {
+        to: appPath("/review"),
+        label: t.nav.review,
+        show: roleCanReview(role),
+      },
+      { to: appPath("/rules"), label: t.nav.rules, show: true },
+      {
+        to: appPath("/audit"),
+        label: t.nav.audit,
+        show: roleIsAdmin(role),
+      },
+      {
+        to: appPath("/settings/integrations"),
+        label: t.nav.integrations,
+        show: true,
+      },
+    ];
+    return items.filter((item) => item.show);
+  }, [role, t.nav]);
 
   const accessError = session.isError && isAccessSessionError(session.error);
 

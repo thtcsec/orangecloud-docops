@@ -20,6 +20,14 @@ export {
 } from "./vietnam-invoice-xml";
 
 export {
+  WorkersAiPdfExtractor,
+  extractInvoiceFieldsFromPdf,
+  mapInvoiceJsonToFields,
+  normalizeMoneyString,
+  WORKERS_AI_PDF_MODEL,
+} from "./workers-ai-pdf";
+
+export {
   evaluateDocumentRules,
   IMPLEMENTED_RULE_KEYS,
 } from "./rules";
@@ -77,14 +85,22 @@ export class HeuristicClassifier implements DocumentClassifier {
       documentType = "invoice_xml";
     } else if (lower.includes("po") || lower.includes("purchase")) {
       documentType = "purchase_order";
-    } else if (lower.includes("contract")) {
+    } else if (lower.includes("contract") || lower.includes("hop-dong") || lower.includes("hopdong")) {
       documentType = "vendor_contract";
-    } else if (input.mimeType === "application/pdf") {
+    } else if (
+      input.mimeType === "application/pdf" ||
+      lower.endsWith(".pdf")
+    ) {
       documentType = "invoice_pdf";
     }
     return {
       documentType,
-      confidence: documentType === "invoice_xml" ? 0.85 : 0.35,
+      confidence:
+        documentType === "invoice_xml"
+          ? 0.85
+          : documentType === "invoice_pdf"
+            ? 0.55
+            : 0.35,
       provider: "heuristic-filename",
       configured: true,
     };
@@ -103,8 +119,8 @@ export class NotConfiguredExtractor implements DocumentExtractor {
       configured: false,
       provider: "none",
       fields: [],
-      message:
-        "No unstructured extraction provider configured. Use invoice XML or Phase 2 Workers AI.",
+        message:
+          "No structured extraction available for this file. Upload Vietnamese invoice XML, or a text PDF invoice (Workers AI) on staging/production.",
     };
   }
 }

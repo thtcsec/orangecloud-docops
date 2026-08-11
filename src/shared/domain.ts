@@ -156,7 +156,7 @@ export const PLANNED_INTEGRATIONS = [
     key: "workers_ai",
     name: "Workers AI",
     description: "Baseline extraction for unstructured PDF contracts and POs.",
-    status: "unavailable" as const,
+    status: "available" as const,
   },
   {
     key: "azure_document_intelligence",

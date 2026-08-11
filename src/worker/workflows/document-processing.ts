@@ -28,6 +28,7 @@ import {
   NotConfiguredExtractor,
   PassthroughNormalizer,
   VietnamInvoiceXmlParser,
+  WorkersAiPdfExtractor,
   evaluateDocumentRules,
 } from "../providers/interfaces";
 
@@ -49,7 +50,7 @@ export type ReviewDecisionEvent = {
 
 /**
  * Document processing Workflow.
- * Phase 1.5: deterministic VN invoice XML parse + first C2P rules.
+ * Phase 1.5+: VN invoice XML parse, Workers AI PDF invoice extract, C2P rules.
  * Still routes to human review — never silently auto-approves.
  */
 export class DocumentProcessingWorkflow extends WorkflowEntrypoint<
@@ -108,7 +109,13 @@ export class DocumentProcessingWorkflow extends WorkflowEntrypoint<
 
     const strategy = await step.do("select-processing-strategy", async () => {
       if (detected.documentType === "invoice_xml") {
-        return { strategy: "vietnam_invoice_xml_parser", provider: "vietnam-invoice-xml" };
+        return {
+          strategy: "vietnam_invoice_xml_parser",
+          provider: "vietnam-invoice-xml",
+        };
+      }
+      if (detected.documentType === "invoice_pdf" && this.env.AI) {
+        return { strategy: "workers_ai_pdf", provider: "workers-ai" };
       }
       return { strategy: "extraction_unavailable", provider: "none" };
     });
@@ -135,10 +142,31 @@ export class DocumentProcessingWorkflow extends WorkflowEntrypoint<
               const xmlText = await obj.text();
               return new VietnamInvoiceXmlParser().parse({ xmlText });
             })()
-          : await new NotConfiguredExtractor().extract({
-              r2ObjectKey: params.r2ObjectKey,
-              mimeType: meta.mimeType,
-            });
+          : strategy.strategy === "workers_ai_pdf"
+            ? await (async () => {
+                const obj = await this.env.DOCUMENTS_BUCKET.get(
+                  params.r2ObjectKey,
+                );
+                if (!obj) {
+                  return {
+                    configured: true,
+                    provider: "workers-ai",
+                    fields: [],
+                    message: "R2 object missing at PDF extract time",
+                  };
+                }
+                const bytes = await obj.arrayBuffer();
+                return new WorkersAiPdfExtractor(this.env.AI).extract({
+                  r2ObjectKey: params.r2ObjectKey,
+                  mimeType: meta.mimeType,
+                  filename: meta.filename,
+                  bytes,
+                });
+              })()
+            : await new NotConfiguredExtractor().extract({
+                r2ObjectKey: params.r2ObjectKey,
+                mimeType: meta.mimeType,
+              });
 
       const normalized = await new PassthroughNormalizer().normalize({
         fields: extraction.fields,

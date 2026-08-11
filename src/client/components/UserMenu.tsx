@@ -1,6 +1,5 @@
 import { Link } from "react-router-dom";
 import { useEffect, useId, useRef, useState } from "react";
-import { roleIsAdmin } from "@shared/domain";
 import { appPath } from "../lib/paths";
 import { useI18n } from "../i18n";
 
@@ -28,7 +27,6 @@ export function UserMenu({ user }: { user: SessionUser }) {
 
   const roleKey = user.role as keyof typeof t.roles.labels;
   const roleLabel = t.roles.labels[roleKey] || user.role;
-  const isAdmin = roleIsAdmin(user.role);
 
   useEffect(() => {
     if (!open) return;
@@ -99,18 +97,16 @@ export function UserMenu({ user }: { user: SessionUser }) {
             </div>
           </div>
 
-          {isAdmin ? (
-            <div className="mt-3 border-t border-slate-100 pt-2 dark:border-slate-800">
-              <Link
-                to={appPath("/settings/profile")}
-                role="menuitem"
-                className="block rounded-md px-2 py-2 text-sm font-medium text-accent-700 hover:bg-accent-50 dark:text-accent-400 dark:hover:bg-slate-900"
-                onClick={() => setOpen(false)}
-              >
-                {t.roles.viewProfile}
-              </Link>
-            </div>
-          ) : null}
+          <div className="mt-3 border-t border-slate-100 pt-2 dark:border-slate-800">
+            <Link
+              to={appPath("/settings/profile")}
+              role="menuitem"
+              className="block rounded-md px-2 py-2 text-sm font-medium text-accent-700 hover:bg-accent-50 dark:text-accent-400 dark:hover:bg-slate-900"
+              onClick={() => setOpen(false)}
+            >
+              {t.roles.viewProfile}
+            </Link>
+          </div>
         </div>
       ) : null}
     </div>

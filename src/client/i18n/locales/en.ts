@@ -146,8 +146,12 @@ export const en = {
   dashboard: {
     title: "Overview",
     description:
-      "Document volume, processing status, open cases, and recent activity.",
+      "Contract-to-Pay ops: ingest invoices, validate rules, human review, optional ERP export.",
     upload: "Upload document",
+    useCase:
+      "Problem solved: Legal / Procurement / Accounting keep vendor contract + PO + invoice in one case, with extraction, rules, and an immutable review trail — not a generic file locker.",
+    useCaseSteps:
+      "Demo path: create a Case → upload invoice PDF (Workers AI) or VN invoice XML → wait for fields + rules → Review → Approve (ERP webhook if configured).",
     totalDocuments: "Documents",
     processing: "Processing",
     needsReview: "Needs review",
@@ -157,15 +161,15 @@ export const en = {
     recentAuditSub: "Latest audited actions in this organization.",
     emptyTitle: "No documents yet",
     emptyBody:
-      "Upload a PDF or invoice XML to start processing and populate these metrics.",
+      "Upload a PDF invoice or Vietnamese invoice XML to start extraction and populate these metrics.",
     goUpload: "Upload document",
     noAuditTitle: "No activity yet",
     noAuditBody: "Activity appears here after documents are processed or reviewed.",
   },
   roles: {
     profileTitle: "Account",
-    profileDescription: "Account and role details for this organization.",
-    viewProfile: "View profile",
+    profileDescription: "Your role and what you can do in this organization.",
+    viewProfile: "View profile & permissions",
     organizationLabel: "Organization ID",
     roleLabel: "Role",
     signInLabel: "Signed in with",
@@ -173,6 +177,8 @@ export const en = {
     authLocal: "Local development",
     manageHint:
       "Organization admins control roles. New Access users start as Viewer unless they are listed as a bootstrap admin.",
+    capabilitiesTitle: "What you can do",
+    capabilitiesSub: "Based on your current role",
     labels: {
       admin: "Admin",
       reviewer: "Reviewer",
@@ -180,10 +186,33 @@ export const en = {
     },
     summaries: {
       admin:
-        "Full access: upload, review, manage cases, and view audit logs.",
+        "Full ops access: upload, review, cases, audit, and ERP webhook config.",
       reviewer:
-        "Can upload documents, process reviews, and update cases. No audit access.",
-      viewer: "Read-only access to documents, cases, rules, and dashboards.",
+        "Upload documents, link cases, and approve/reject reviews. No audit or webhook config.",
+      viewer:
+        "Read-only: documents, cases, rules, dashboard, integrations catalogue.",
+    },
+    capabilities: {
+      admin: [
+        "Upload PDF/XML and batch-link to cases",
+        "Create cases and link documents",
+        "Review & approve / reject / request correction",
+        "View immutable audit log",
+        "Configure ERP webhook export",
+        "Reprocess documents",
+      ],
+      reviewer: [
+        "Upload PDF/XML and batch-link to cases",
+        "Create cases and link documents",
+        "Review & approve / reject / request correction",
+        "Reprocess documents",
+        "Cannot view audit or configure integrations",
+      ],
+      viewer: [
+        "View dashboard, documents, cases, rules",
+        "Download originals and open preview",
+        "Cannot upload, review, audit, or configure integrations",
+      ],
     },
   },
   documents: {
@@ -258,7 +287,7 @@ export const en = {
     extractedSubReady: "Parsed from Vietnamese invoice XML.",
     extractionUnavailableTitle: "No extracted fields",
     extractionUnavailableBody:
-      "Upload a Vietnamese invoice XML to extract fields. PDF extraction is planned.",
+      "Upload a Vietnamese invoice XML (deterministic) or a text PDF invoice (Workers AI on staging/production). Scanned image-only PDFs may yield no fields.",
     ruleResults: "Rule results",
     noRulesTitle: "No rule results",
     noRulesBody: "Rules run after processing completes.",
@@ -443,6 +472,8 @@ export const en = {
     available: "Available",
     connected: "Connected",
     availability: "Not available in the current release.",
+    workersAiLive:
+      "Live on this deployment: PDF invoices are converted and fields extracted during processing.",
     adminOnly: "Only admins can configure integrations.",
     erpUrlLabel: "Webhook URL",
     erpSave: "Save URL",
@@ -459,7 +490,7 @@ export const en = {
       workers_ai: {
         name: "Workers AI",
         description:
-          "Extract fields from unstructured PDF contracts and purchase orders.",
+          "PDF invoices: convert to Markdown then extract invoice fields (number, vendor, tax, totals) for C2P rules.",
       },
       azure_document_intelligence: {
         name: "Azure Document Intelligence",

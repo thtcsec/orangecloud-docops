@@ -67,6 +67,19 @@ integrationRoutes.get("/integrations", requireAuth, async (c) => {
           webhookUrlMasked: erpUrl ? maskWebhookUrl(erpUrl) : null,
         };
       }
+      if (item.key === "workers_ai") {
+        const aiReady = Boolean(c.env.AI);
+        return {
+          ...item,
+          status: aiReady ? ("connected" as const) : ("available" as const),
+          connected: aiReady,
+          configurable: false,
+          webhookUrlMasked: null,
+          detail: aiReady
+            ? "PDF invoices: PDF→Markdown→LLM field extract on process."
+            : "Workers AI binding not present in this environment.",
+        };
+      }
       return {
         ...item,
         connected: false,
