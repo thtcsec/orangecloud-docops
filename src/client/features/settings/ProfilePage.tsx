@@ -3,7 +3,7 @@ import { Navigate } from "react-router-dom";
 import { apiGet } from "../../lib/api";
 import { appPath } from "../../lib/paths";
 import {
-  LoadingBlock,
+  DetailSkeleton,
   PageHeader,
   Panel,
   PanelHeader,
@@ -29,7 +29,7 @@ export function ProfilePage() {
     queryFn: () => apiGet<Session>("/api/session"),
   });
 
-  if (session.isLoading) return <LoadingBlock label={t.common.loading} />;
+  if (session.isLoading) return <DetailSkeleton />;
   if (session.isError) {
     return (
       <QueryErrorState

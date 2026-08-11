@@ -19,11 +19,16 @@ export function formatDate(value: string | null | undefined): string {
 
 export function statusTone(status: string): string {
   const s = status.toUpperCase();
-  if (["APPROVED", "EXPORTED", "PASS", "RESOLVED"].includes(s) || s === "pass") {
+  if (
+    ["APPROVED", "EXPORTED", "PASS", "RESOLVED", "ACTIVE", "IMPLEMENTED"].includes(
+      s,
+    ) ||
+    s === "pass"
+  ) {
     return "bg-emerald-50 text-emerald-800 border-emerald-200";
   }
   if (
-    ["NEEDS_REVIEW", "WARNING", "OPEN", "IN_PROGRESS", "WAITING_REVIEW"].includes(s) ||
+    ["NEEDS_REVIEW", "WARNING", "OPEN", "IN_PROGRESS", "WAITING_REVIEW", "PLANNED"].includes(s) ||
     s === "warning" ||
     s === "open"
   ) {

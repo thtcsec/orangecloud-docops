@@ -18,6 +18,16 @@ export const createDocumentSchema = z.object({
   mimeType: z.string().min(1),
 });
 
+/** JSON upload body (preferred behind Cloudflare Access/WAF — avoids multipart blocks). */
+export const jsonUploadSchema = z.object({
+  filename: z.string().min(1).max(255),
+  displayName: z.string().min(1).max(255).optional(),
+  mimeType: z.string().min(1).max(127).optional(),
+  documentType: z.enum(DOCUMENT_TYPES).optional(),
+  caseId: z.string().min(1).max(128).optional(),
+  contentBase64: z.string().min(1),
+});
+
 export const createCaseSchema = z.object({
   reference: z.string().min(1).max(120),
   vendorName: z.string().min(1).max(255).optional(),

@@ -2,7 +2,13 @@ import { useMemo, useState } from "react";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { DOCUMENT_STATUSES, DOCUMENT_TYPES } from "@shared/domain";
-import { apiGet, apiUpload } from "../../lib/api";
+import {
+  ApiError,
+  apiGet,
+  apiUploadDocument,
+  isAllowedUploadFile,
+} from "../../lib/api";
+import { roleCanUpload } from "@shared/domain";
 import { formatBytes, formatDate } from "../../lib/format";
 import { appPath } from "../../lib/paths";
 import { documentsListNeedsPoll } from "../../lib/processing";
@@ -14,12 +20,12 @@ import {
   ErrorBanner,
   Field,
   Input,
-  LoadingBlock,
   PageHeader,
   Panel,
   Select,
   SoftBanner,
   StatusBadge,
+  TableRowsSkeleton,
 } from "../../components/ui";
 import { useI18n } from "../../i18n";
 
@@ -54,6 +60,13 @@ export function DocumentsPage() {
   const [uploadedFrom, setUploadedFrom] = useState("");
   const debouncedSearch = useDebouncedValue(search, 300);
 
+  const session = useQuery({
+    queryKey: ["session"],
+    queryFn: () =>
+      apiGet<{ user: { role: string } }>("/api/session"),
+  });
+  const canUpload = roleCanUpload(session.data?.user.role);
+
   const queryString = useMemo(() => {
     const params = new URLSearchParams();
     if (documentType) params.set("documentType", documentType);
@@ -81,12 +94,14 @@ export function DocumentsPage() {
         title={t.documents.title}
         description={t.documents.description}
         actions={
-          <Link
-            to={appPath("/documents/upload")}
-            className="rounded-md bg-accent-600 px-3 py-2 text-sm font-medium text-white"
-          >
-            {t.common.upload}
-          </Link>
+          canUpload ? (
+            <Link
+              to={appPath("/documents/upload")}
+              className="rounded-md bg-accent-600 px-3 py-2 text-sm font-medium text-white"
+            >
+              {t.common.upload}
+            </Link>
+          ) : undefined
         }
       />
 
@@ -143,8 +158,8 @@ export function DocumentsPage() {
       </Panel>
 
       <Panel>
-        {query.isLoading ? <LoadingBlock label={t.common.loading} /> : null}
-        {query.isError ? (
+        {query.isLoading ? <TableRowsSkeleton rows={6} /> : null}
+        {!query.isLoading && query.isError ? (
           <div className="p-4">
             <ErrorBanner
               message={(query.error as Error).message || t.common.loadFailed}
@@ -158,9 +173,11 @@ export function DocumentsPage() {
             title={t.documents.emptyTitle}
             description={t.documents.emptyBody}
             action={
-              <Link to={appPath("/documents/upload")} className="text-sm text-accent-600">
-                {t.documents.submit}
-              </Link>
+              canUpload ? (
+                <Link to={appPath("/documents/upload")} className="text-sm text-accent-600">
+                  {t.documents.submit}
+                </Link>
+              ) : undefined
             }
           />
         ) : null}
@@ -243,54 +260,132 @@ export function DocumentsPage() {
 export function DocumentUploadPage() {
   const { t } = useI18n();
   const qc = useQueryClient();
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [documentType, setDocumentType] = useState("");
   const [caseId, setCaseId] = useState("");
   const [progress, setProgress] = useState(0);
+  const [currentName, setCurrentName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<{
-    documentId: string;
-    duplicateOf?: { displayName: string; documentId: string };
-  } | null>(null);
+  const [results, setResults] = useState<
+    Array<{
+      filename: string;
+      ok: boolean;
+      documentId?: string;
+      message?: string;
+      duplicateOf?: { displayName: string; documentId: string };
+    }>
+  >([]);
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
+
+  const session = useQuery({
+    queryKey: ["session"],
+    queryFn: () =>
+      apiGet<{ user: { role: string } }>("/api/session"),
+  });
+  const canUpload = roleCanUpload(session.data?.user.role);
+
+  function takeFiles(list: FileList | File[] | null) {
+    setError(null);
+    if (!list || list.length === 0) return;
+    const next: File[] = [];
+    const rejected: string[] = [];
+    for (const file of Array.from(list)) {
+      const check = isAllowedUploadFile(file);
+      if (!check.ok) {
+        rejected.push(file.name);
+        continue;
+      }
+      next.push(file);
+    }
+    if (rejected.length > 0 && next.length === 0) {
+      setError(t.documents.unsupportedType);
+      return;
+    }
+    if (rejected.length > 0) {
+      setError(
+        t.documents.someUnsupported.replace("{names}", rejected.join(", ")),
+      );
+    }
+    setFiles((prev) => [...prev, ...next]);
+  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    setResult(null);
-    if (!file) {
+    setResults([]);
+    if (files.length === 0) {
       setError(t.documents.chooseFile);
       return;
     }
-    const form = new FormData();
-    form.set("file", file);
-    if (documentType) form.set("documentType", documentType);
-    if (caseId) form.set("caseId", caseId);
     setUploading(true);
+    const outcomes: typeof results = [];
     try {
-      const data = await apiUpload<{
-        documentId: string;
-        duplicateOf?: { displayName: string; documentId: string };
-      }>("/api/documents", form, setProgress);
-      setResult(data);
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i]!;
+        setCurrentName(file.name);
+        setProgress(Math.round((i / files.length) * 100));
+        try {
+          const data = await apiUploadDocument<{
+            documentId: string;
+            duplicateOf?: { displayName: string; documentId: string };
+          }>(
+            file,
+            {
+              documentType: documentType || undefined,
+              caseId: caseId || undefined,
+            },
+            (pct) => {
+              const base = (i / files.length) * 100;
+              const slice = 100 / files.length;
+              setProgress(Math.round(base + (pct / 100) * slice));
+            },
+          );
+          outcomes.push({
+            filename: file.name,
+            ok: true,
+            documentId: data.documentId,
+            duplicateOf: data.duplicateOf,
+          });
+        } catch (err) {
+          if (err instanceof ApiError && err.code === "ACCESS_REDIRECT") {
+            return;
+          }
+          outcomes.push({
+            filename: file.name,
+            ok: false,
+            message:
+              err instanceof ApiError && err.code === "FORBIDDEN"
+                ? t.documents.uploadForbidden
+                : err instanceof Error
+                  ? err.message
+                  : t.common.actionFailed,
+          });
+        }
+      }
+      setProgress(100);
+      setResults(outcomes);
+      setFiles([]);
       void qc.invalidateQueries({ queryKey: ["documents"] });
       void qc.invalidateQueries({ queryKey: ["dashboard"] });
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : t.common.actionFailed,
-      );
+      void qc.invalidateQueries({ queryKey: ["cases"] });
+      if (caseId) {
+        void qc.invalidateQueries({ queryKey: ["case", caseId] });
+      }
     } finally {
       setUploading(false);
+      setCurrentName(null);
     }
   }
 
   function onDrop(e: React.DragEvent) {
     e.preventDefault();
     setDragging(false);
-    const dropped = e.dataTransfer.files?.[0];
-    if (dropped) setFile(dropped);
+    takeFiles(e.dataTransfer.files);
   }
+
+  const okCount = results.filter((r) => r.ok).length;
+  const failCount = results.filter((r) => !r.ok).length;
 
   return (
     <div>
@@ -301,6 +396,11 @@ export function DocumentUploadPage() {
         backLabel={t.common.backToDocuments}
       />
       <Panel className="max-w-2xl p-4">
+        {session.isSuccess && !canUpload ? (
+          <div className="mb-4">
+            <ErrorBanner message={t.documents.uploadForbidden} />
+          </div>
+        ) : null}
         <form className="space-y-4" onSubmit={onSubmit}>
           <div
             onDragOver={(e) => {
@@ -324,15 +424,32 @@ export function DocumentUploadPage() {
             <div className="mt-4">
               <input
                 type="file"
-                accept=".pdf,.xml,application/pdf,application/xml,text/xml"
-                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                multiple
+                accept=".pdf,.PDF,.xml,.XML,application/pdf,application/xml,text/xml"
+                onChange={(e) => {
+                  takeFiles(e.target.files);
+                  e.target.value = "";
+                }}
               />
             </div>
-            {file ? (
-              <p className="mt-3 text-sm text-ink-700">
-                {t.documents.selected}: <span className="font-medium">{file.name}</span> (
-                {formatBytes(file.size)})
-              </p>
+            {files.length > 0 ? (
+              <ul className="mt-3 space-y-1 text-left text-sm text-ink-700">
+                {files.map((file) => (
+                  <li key={`${file.name}-${file.size}-${file.lastModified}`}>
+                    <span className="font-medium">{file.name}</span> (
+                    {formatBytes(file.size)})
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            {files.length > 0 ? (
+              <button
+                type="button"
+                className="mt-3 text-xs font-medium text-accent-600 hover:underline"
+                onClick={() => setFiles([])}
+              >
+                {t.documents.clearFiles}
+              </button>
             ) : null}
           </div>
 
@@ -359,41 +476,87 @@ export function DocumentUploadPage() {
           </Field>
 
           {uploading ? (
-            <div>
-              <div className="mb-1 flex justify-between text-xs text-ink-500">
-                <span>{t.documents.uploading}</span>
-                <span>{progress}%</span>
+            <div className="space-y-3 rounded-lg border border-slate-200/80 bg-slate-50/80 p-3 dark:border-slate-700 dark:bg-slate-900/40">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0 flex-1 space-y-2">
+                  <div className="truncate text-sm font-medium text-ink-800">
+                    {currentName || t.documents.uploading}
+                  </div>
+                  <div className="h-2.5 w-28 animate-pulse rounded bg-slate-200 dark:bg-slate-700" />
+                </div>
+                <span className="shrink-0 text-xs font-medium tabular-nums text-ink-500">
+                  {progress}%
+                </span>
               </div>
-              <div className="h-2 overflow-hidden rounded bg-slate-200">
+              <div className="h-2 overflow-hidden rounded bg-slate-200 dark:bg-slate-700">
                 <div
-                  className="h-full bg-accent-500 transition-all"
-                  style={{ width: `${progress}%` }}
+                  className="h-full bg-accent-500 transition-all duration-200"
+                  style={{ width: `${Math.max(progress, 4)}%` }}
                 />
               </div>
+              <p className="text-xs text-ink-500">{t.documents.uploading}…</p>
             </div>
           ) : null}
 
           {error ? <ErrorBanner message={error} /> : null}
-          {result?.duplicateOf ? (
-            <SoftBanner tone="warn">
-              {t.documents.existingDocument}: {result.duplicateOf.displayName} (
-              {result.duplicateOf.documentId}). {t.documents.duplicateWarn}
-            </SoftBanner>
-          ) : null}
-          {result ? (
-            <SoftBanner tone="ok">
-              {t.documents.uploadAccepted}{" "}
-              <Link
-                className="font-medium underline"
-                to={appPath(`/documents/${result.documentId}`)}
-              >
-                {t.documents.openDocument}
-              </Link>
-            </SoftBanner>
+          {results.length > 0 ? (
+            <div className="space-y-2">
+              <SoftBanner tone={failCount === 0 ? "ok" : "warn"}>
+                {t.documents.batchSummary
+                  .replace("{ok}", String(okCount))
+                  .replace("{fail}", String(failCount))}
+              </SoftBanner>
+              <ul className="space-y-2 text-sm">
+                {results.map((item) => (
+                  <li
+                    key={`${item.filename}-${item.documentId || item.message}`}
+                    className="rounded-md border border-slate-200 px-3 py-2 dark:border-slate-700"
+                  >
+                    <div className="font-medium">{item.filename}</div>
+                    {item.ok && item.documentId ? (
+                      <div className="mt-1 text-ink-500">
+                        {t.documents.uploadAccepted}{" "}
+                        <Link
+                          className="font-medium text-accent-600 underline"
+                          to={appPath(`/documents/${item.documentId}`)}
+                        >
+                          {t.documents.openDocument}
+                        </Link>
+                        {item.duplicateOf ? (
+                          <span className="mt-1 block text-amber-800 dark:text-amber-200">
+                            {t.documents.existingDocument}:{" "}
+                            {item.duplicateOf.displayName}.{" "}
+                            {t.documents.duplicateWarn}
+                          </span>
+                        ) : null}
+                      </div>
+                    ) : (
+                      <div className="mt-1 text-red-700 dark:text-red-300">
+                        {item.message || t.common.actionFailed}
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
           ) : null}
 
-          <Button type="submit" disabled={uploading}>
-            {uploading ? t.documents.uploading : t.documents.submit}
+          <Button
+            type="submit"
+            disabled={
+              uploading ||
+              files.length === 0 ||
+              (session.isSuccess && !canUpload)
+            }
+          >
+            {uploading
+              ? t.documents.uploading
+              : files.length > 1
+                ? t.documents.submitMany.replace(
+                    "{count}",
+                    String(files.length),
+                  )
+                : t.documents.submit}
           </Button>
         </form>
       </Panel>

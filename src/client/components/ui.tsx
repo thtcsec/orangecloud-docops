@@ -93,12 +93,18 @@ export function PanelHeader({
   );
 }
 
-export function StatusBadge({ status }: { status: string }) {
+export function StatusBadge({
+  status,
+  label,
+}: {
+  status: string;
+  label?: string;
+}) {
   return (
     <span
       className={`inline-flex items-center rounded border px-2 py-0.5 text-xs font-medium ${statusTone(status)}`}
     >
-      {status}
+      {label ?? status}
     </span>
   );
 }
@@ -265,6 +271,229 @@ export function LoadingBlock({ label = "Loading…" }: { label?: string }) {
         aria-hidden
       />
       {label}
+    </div>
+  );
+}
+
+export function Skeleton({ className = "" }: { className?: string }) {
+  return (
+    <div
+      className={`animate-pulse rounded-md bg-slate-200/90 dark:bg-slate-700/70 ${className}`}
+      aria-hidden
+    />
+  );
+}
+
+export function DashboardSkeleton() {
+  return (
+    <div className="animate-fade-in space-y-6" aria-busy="true" aria-live="polite">
+      <div className="space-y-2">
+        <Skeleton className="h-9 w-48" />
+        <Skeleton className="h-4 w-full max-w-xl" />
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <Panel key={i} className="space-y-3 px-4 py-4">
+            <Skeleton className="h-3 w-20" />
+            <Skeleton className="h-8 w-16" />
+          </Panel>
+        ))}
+      </div>
+      <Panel className="p-4 space-y-3">
+        <Skeleton className="h-5 w-40" />
+        <Skeleton className="h-4 w-56" />
+        <div className="space-y-2 pt-2">
+          <Skeleton className="h-12 w-full" />
+          <Skeleton className="h-12 w-full" />
+          <Skeleton className="h-12 w-3/4" />
+        </div>
+      </Panel>
+    </div>
+  );
+}
+
+/** Row placeholders inside an existing table Panel (header/filters already shown). */
+export function TableRowsSkeleton({ rows = 6 }: { rows?: number }) {
+  return (
+    <div
+      className="animate-fade-in divide-y divide-slate-100 dark:divide-slate-800"
+      aria-busy="true"
+      aria-live="polite"
+    >
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} className="flex items-center gap-4 px-4 py-3.5">
+          <Skeleton className="h-4 w-[32%]" />
+          <Skeleton className="h-4 w-20" />
+          <Skeleton className="h-5 w-16 rounded" />
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className="ml-auto h-4 w-14" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function TablePageSkeleton({ rows = 6 }: { rows?: number }) {
+  return (
+    <div className="animate-fade-in space-y-4" aria-busy="true" aria-live="polite">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="space-y-2">
+          <Skeleton className="h-9 w-40" />
+          <Skeleton className="h-4 w-72" />
+        </div>
+        <Skeleton className="h-10 w-28" />
+      </div>
+      <Panel className="p-4">
+        <div className="grid gap-3 md:grid-cols-4">
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+        </div>
+      </Panel>
+      <Panel>
+        <TableRowsSkeleton rows={rows} />
+      </Panel>
+    </div>
+  );
+}
+
+export function FormPanelSkeleton() {
+  return (
+    <div className="animate-fade-in space-y-4" aria-busy="true" aria-live="polite">
+      <div className="space-y-2">
+        <Skeleton className="h-4 w-32" />
+        <Skeleton className="h-9 w-2/3 max-w-md" />
+        <Skeleton className="h-4 w-48" />
+      </div>
+      <Panel className="max-w-2xl space-y-4 p-4">
+        <Skeleton className="h-36 w-full rounded-lg" />
+        <div className="space-y-2">
+          <Skeleton className="h-3 w-24" />
+          <Skeleton className="h-10 w-full" />
+        </div>
+        <div className="space-y-2">
+          <Skeleton className="h-3 w-20" />
+          <Skeleton className="h-10 w-full" />
+        </div>
+        <Skeleton className="h-10 w-28" />
+      </Panel>
+    </div>
+  );
+}
+
+export function AppShellSkeleton() {
+  return (
+    <div className="animate-fade-in space-y-6" aria-busy="true" aria-live="polite">
+      <div className="space-y-2">
+        <Skeleton className="h-9 w-48" />
+        <Skeleton className="h-4 w-full max-w-xl" />
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Panel key={i} className="space-y-3 px-4 py-4">
+            <Skeleton className="h-3 w-20" />
+            <Skeleton className="h-8 w-16" />
+          </Panel>
+        ))}
+      </div>
+      <Panel className="space-y-3 p-4">
+        <Skeleton className="h-5 w-40" />
+        <Skeleton className="h-12 w-full" />
+        <Skeleton className="h-12 w-full" />
+        <Skeleton className="h-12 w-3/4" />
+      </Panel>
+    </div>
+  );
+}
+
+export function DetailSkeleton() {
+  return (
+    <div className="animate-fade-in space-y-4" aria-busy="true" aria-live="polite">
+      <div className="space-y-2">
+        <Skeleton className="h-4 w-32" />
+        <Skeleton className="h-9 w-2/3 max-w-lg" />
+        <Skeleton className="h-4 w-48" />
+      </div>
+      <div className="grid gap-4 lg:grid-cols-3">
+        <Panel className="space-y-3 p-4 lg:col-span-1">
+          <Skeleton className="h-5 w-24" />
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-5/6" />
+          <Skeleton className="h-4 w-2/3" />
+        </Panel>
+        <Panel className="space-y-3 p-4 lg:col-span-2">
+          <Skeleton className="h-5 w-28" />
+          <Skeleton className="h-24 w-full" />
+        </Panel>
+      </div>
+      <Panel className="space-y-3 p-4">
+        <Skeleton className="h-5 w-32" />
+        <Skeleton className="h-12 w-full" />
+        <Skeleton className="h-12 w-full" />
+      </Panel>
+    </div>
+  );
+}
+
+export function SplitListSkeleton() {
+  return (
+    <div className="animate-fade-in space-y-4" aria-busy="true" aria-live="polite">
+      <div className="space-y-2">
+        <Skeleton className="h-9 w-40" />
+        <Skeleton className="h-4 w-80" />
+      </div>
+      <div className="grid gap-4 lg:grid-cols-5">
+        <Panel className="space-y-3 p-3 lg:col-span-2">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} className="h-16 w-full" />
+          ))}
+        </Panel>
+        <Panel className="space-y-3 p-4 lg:col-span-3">
+          <Skeleton className="h-5 w-40" />
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-24 w-full" />
+          <div className="flex gap-2">
+            <Skeleton className="h-10 w-24" />
+            <Skeleton className="h-10 w-24" />
+          </div>
+        </Panel>
+      </div>
+    </div>
+  );
+}
+
+export function CardsSkeleton({ count = 4 }: { count?: number }) {
+  return (
+    <div className="animate-fade-in space-y-4" aria-busy="true" aria-live="polite">
+      <div className="space-y-2">
+        <Skeleton className="h-9 w-40" />
+        <Skeleton className="h-4 w-96 max-w-full" />
+      </div>
+      <div className="grid gap-3 md:grid-cols-2">
+        {Array.from({ length: count }).map((_, i) => (
+          <Panel key={i} className="space-y-3 p-4">
+            <div className="flex justify-between gap-3">
+              <Skeleton className="h-5 w-40" />
+              <Skeleton className="h-6 w-16" />
+            </div>
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-2/3" />
+          </Panel>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function UserChipSkeleton() {
+  return (
+    <div className="flex items-center gap-2.5 rounded-md border border-slate-200/80 px-2.5 py-1.5 dark:border-slate-700">
+      <Skeleton className="size-8 rounded-full" />
+      <div className="space-y-1.5">
+        <Skeleton className="h-3 w-24" />
+        <Skeleton className="h-2.5 w-14" />
+      </div>
     </div>
   );
 }

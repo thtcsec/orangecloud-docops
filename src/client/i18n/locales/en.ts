@@ -22,6 +22,10 @@ export const en = {
     accessRequiredBody:
       "Sign in with Cloudflare Access to open DocOps. Use the button below to continue.",
     reload: "Sign in with Access",
+    loadFailedTitle: "Could not load session",
+    loadFailedBody:
+      "The API did not respond. Check your connection, then retry. If this keeps happening, sign in again.",
+    retry: "Retry",
   },
   common: {
     loading: "Loading…",
@@ -199,19 +203,26 @@ export const en = {
     case: "Case",
     emptyTitle: "No matching documents",
     emptyBody: "Adjust filters, or upload a PDF/XML to get started.",
-    uploadTitle: "Upload document",
+    uploadTitle: "Upload documents",
     uploadDescription:
-      "PDF or XML. Originals are stored privately in R2; versions are never overwritten.",
-    drop: "Drop a PDF or XML here",
+      "PDF or XML (one or many). Originals are stored privately in R2; versions are never overwritten.",
+    drop: "Drop PDF or XML files here",
     maxSizeHint: "Maximum size is set by the deployment upload limit.",
     selected: "Selected",
+    clearFiles: "Clear selection",
+    someUnsupported: "Skipped unsupported files: {names}",
+    batchSummary: "Uploaded {ok} · failed {fail}",
+    submitMany: "Upload {count} files",
     documentType: "Document type (optional)",
     autoUnknown: "Auto-detect / unknown",
     caseId: "Case ID (optional)",
-    caseIdHint: "Link to an existing case if you have one",
+    caseIdHint: "Link every file in this batch to an existing case",
     uploading: "Uploading",
     submit: "Upload",
-    chooseFile: "Pick a PDF or XML file.",
+    chooseFile: "Pick one or more PDF or XML files.",
+    unsupportedType: "Only PDF and XML files are supported.",
+    uploadForbidden:
+      "Your role cannot upload documents. Ask an admin to grant Reviewer or Admin.",
     duplicateWarn:
       "This file content already exists (same checksum). A new version was still saved.",
     existingDocument: "Existing document",
@@ -231,7 +242,12 @@ export const en = {
     case: "Case",
     openCase: "Open case",
     preview: "Preview",
-    previewSub: "Inline preview is not available yet. Download the original file to view it.",
+    previewSub: "Inline preview loads the original from private storage.",
+    previewReady: "Inline preview of the current version.",
+    previewUnsupported:
+      "Preview is available for PDF and XML. Download the original for other types.",
+    previewLoading: "Loading preview…",
+    previewFailed: "Could not load preview. Try downloading the original.",
     versions: "Versions",
     timeline: "Processing history",
     noRunsTitle: "No processing runs",
@@ -252,6 +268,13 @@ export const en = {
     auditEvents: "Audit events",
     attempt: "Attempt",
     noComment: "No comment",
+    statusNeedsReview:
+      "Waiting for review. Approve finishes the document flow.",
+    openReview: "Open review queue",
+    statusApproved:
+      "Approved — done. Configure ERP webhook under Integrations to auto-export on approve.",
+    statusExported: "Approved and exported to the ERP webhook. Flow complete.",
+    statusRejected: "Rejected. This document will not proceed to export.",
   },
   cases: {
     title: "Cases",
@@ -285,7 +308,19 @@ export const en = {
     linked: "Linked documents",
     linkedSub: "Documents attached to this case",
     noLinkedTitle: "No linked documents",
-    noLinkedBody: "Link a contract, PO, or invoice when uploading.",
+    noLinkedBody: "Link a contract, PO, or invoice when uploading — or use the form below.",
+    linkTitle: "Link existing document",
+    linkHint: "Paste a document ID from the Documents list.",
+    linkDocumentId: "Document ID",
+    linkRelationship: "Relationship",
+    linkAction: "Link document",
+    linkSuccess: "Document linked to this case.",
+    relationships: {
+      contract: "Contract",
+      purchase_order: "Purchase order",
+      invoice: "Invoice",
+      supporting_document: "Supporting document",
+    },
     exceptionsTitle: "Exceptions",
     noExceptionsTitle: "No exceptions",
     noExceptionsBody: "Failed and warning rule results appear here.",
@@ -313,10 +348,66 @@ export const en = {
     approve: "Approve",
     reject: "Reject",
     correction: "Request correction",
+    approveHint:
+      "Approve closes the review and marks the document done. If an ERP webhook is configured, results are pushed automatically.",
+    approveDone:
+      "Approved — done. Document is APPROVED. Set ERP webhook under Integrations to export next time.",
+    approveExported:
+      "Approved and exported to the ERP webhook. Document status is EXPORTED.",
+    approveExportFailed:
+      "Approved, but ERP webhook export failed. Document stays APPROVED — check Integrations / Audit.",
+    rejectDone: "Rejected. Document will not be exported.",
+    correctionDone: "Correction requested. Document marked failed for rework.",
   },
   rules: {
     title: "Rules",
-    description: "Validation rules evaluated during document processing.",
+    description:
+      "Validation rules evaluated during document processing. Active rules run today; planned rules need more case data.",
+    active: "Active",
+    planned: "Planned",
+    note: "{active} of {total} rules are active in this release. Active rules run on extracted invoice fields; planned rules need linked contract/PO data.",
+    catalog: {
+      supplier_identity_match: {
+        name: "Supplier identity match",
+        description:
+          "Vendor name and tax ID on the invoice must match the linked contract.",
+      },
+      invoice_contract_date_valid: {
+        name: "Invoice date within contract term",
+        description:
+          "Invoice issue date must fall within the contract effective period.",
+      },
+      invoice_within_contract_ceiling: {
+        name: "Invoice within contract ceiling",
+        description:
+          "Cumulative invoice amounts must not exceed the contract value ceiling.",
+      },
+      invoice_within_po_value: {
+        name: "Invoice within PO value",
+        description:
+          "Invoice total must not exceed the linked purchase order value.",
+      },
+      invoice_arithmetic_valid: {
+        name: "Invoice arithmetic valid",
+        description:
+          "Line items, tax, and totals must be arithmetically consistent.",
+      },
+      payment_term_match: {
+        name: "Payment term match",
+        description:
+          "Invoice payment terms must align with the contract payment terms.",
+      },
+      duplicate_invoice_check: {
+        name: "Duplicate invoice check",
+        description:
+          "Invoice number + vendor tax ID must be unique within the organization.",
+      },
+      invoice_xml_pdf_consistency: {
+        name: "Invoice XML/PDF consistency",
+        description:
+          "Structured XML invoice fields must be consistent with the PDF representation.",
+      },
+    },
   },
   audit: {
     title: "Audit",
@@ -324,6 +415,7 @@ export const en = {
     actorId: "Actor ID",
     entityType: "Entity type",
     action: "Action",
+    actionPlaceholder: "e.g. document.uploaded",
     entityId: "Document / case ID",
     fromDate: "From date",
     when: "When",
@@ -333,15 +425,36 @@ export const en = {
     emptyTitle: "No events yet",
     emptyBody: "Events appear after uploads, processing, or review decisions.",
     adminOnly: "Audit access is limited to admins.",
+    entityTypes: {
+      document: "Document",
+      case: "Case",
+      review_task: "Review task",
+      processing_run: "Processing run",
+      integration: "Integration",
+    },
   },
   integrations: {
     title: "Integrations",
     description:
-      "Planned connectors for extraction and export. None are connected in this release.",
+      "Connect export and extraction providers. ERP webhook is available now.",
     roadmapNote:
-      "This page is a roadmap catalogue so stakeholders can see what comes next. Connection UI ships in a later release.",
+      "ERP webhook works today: save a URL, test it, then approve a document to push JSON. Other connectors remain on the roadmap.",
     planned: "Planned",
+    available: "Available",
+    connected: "Connected",
     availability: "Not available in the current release.",
+    adminOnly: "Only admins can configure integrations.",
+    erpUrlLabel: "Webhook URL",
+    erpSave: "Save URL",
+    erpTest: "Send test",
+    erpClear: "Clear",
+    erpSaved: "ERP webhook saved. Approvals will POST JSON to this URL.",
+    erpCleared: "ERP webhook cleared.",
+    erpTestOk: "Test payload delivered successfully.",
+    erpTestFailed: "Test failed. Check the URL and try again.",
+    erpConfigured: "Configured: {url}",
+    erpNotConfigured:
+      "Not configured yet. Paste an HTTPS endpoint that accepts JSON POSTs.",
     catalog: {
       workers_ai: {
         name: "Workers AI",
@@ -358,7 +471,8 @@ export const en = {
       },
       erp_webhook: {
         name: "ERP webhook",
-        description: "Push approved results into an existing ERP.",
+        description:
+          "On approve, POST document metadata JSON to your ERP (or any HTTP endpoint).",
       },
       misa_accounting: {
         name: "MISA / accounting",

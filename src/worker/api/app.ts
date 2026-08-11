@@ -31,7 +31,12 @@ export function createApp() {
         return origin === allowed ? origin : "";
       },
       credentials: true,
-      allowHeaders: ["Content-Type", "Authorization", "Cf-Access-Jwt-Assertion"],
+      allowHeaders: [
+        "Content-Type",
+        "Authorization",
+        "Accept",
+        "Cf-Access-Jwt-Assertion",
+      ],
       allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     }),
   );
@@ -73,5 +78,17 @@ export function createApp() {
   });
 
   app.route("/api", api);
+
+  // Parent-level JSON fallbacks (middleware / routing failures must not be text/HTML).
+  app.notFound((c) => fail(c, 404, "NOT_FOUND", "API route not found"));
+  app.onError((err, c) => {
+    logger.error("app_unhandled_error", {
+      requestId: c.get("requestId"),
+      errorCode: "INTERNAL_ERROR",
+      messageText: err.message,
+    });
+    return fail(c, 500, "INTERNAL_ERROR", "An unexpected error occurred");
+  });
+
   return app;
 }

@@ -1,4 +1,10 @@
 import type { UserRole } from "@shared/domain";
+import {
+  normalizeRole,
+  roleCanUpload,
+  roleCanReview,
+  roleIsAdmin,
+} from "@shared/domain";
 
 export type AppPrincipal = {
   userId: string;
@@ -10,21 +16,23 @@ export type AppPrincipal = {
 };
 
 export function canUpload(role: UserRole): boolean {
-  return role === "admin" || role === "reviewer";
+  return roleCanUpload(role);
 }
 
 export function canReview(role: UserRole): boolean {
-  return role === "admin" || role === "reviewer";
+  return roleCanReview(role);
 }
 
 export function canViewAudit(role: UserRole): boolean {
-  return role === "admin";
+  return roleIsAdmin(role);
 }
 
 export function canManageIntegrations(role: UserRole): boolean {
-  return role === "admin";
+  return roleIsAdmin(role);
 }
 
 export function canMutateCases(role: UserRole): boolean {
-  return role === "admin" || role === "reviewer";
+  return roleCanUpload(role);
 }
+
+export { normalizeRole };

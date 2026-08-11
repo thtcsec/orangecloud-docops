@@ -15,12 +15,10 @@ import { AuditPage } from "../features/audit/AuditPage";
 import { IntegrationsPage } from "../features/integrations/IntegrationsPage";
 import { ProfilePage } from "../features/settings/ProfilePage";
 import { PrivacyPage } from "../features/privacy/PrivacyPage";
-import { useI18n } from "../i18n";
 import { APP_BASE, LEGACY_APP_SEGMENTS } from "../lib/paths";
 
 /** Full browser navigation so Cloudflare Access can intercept /app/*. */
 function LegacyAppRedirect() {
-  const { t } = useI18n();
   const { pathname, search, hash } = useLocation();
   const target = `${APP_BASE}${pathname}${search}${hash}`;
 
@@ -29,9 +27,11 @@ function LegacyAppRedirect() {
   }, [target]);
 
   return (
-    <p className="p-6 text-sm text-ink-500">
-      {t.common.loading} {target}
-    </p>
+    <div className="mx-auto max-w-7xl space-y-4 px-4 py-10" aria-busy="true">
+      <div className="h-9 w-48 animate-pulse rounded-md bg-slate-200 dark:bg-slate-700" />
+      <div className="h-4 w-80 max-w-full animate-pulse rounded-md bg-slate-200 dark:bg-slate-700" />
+      <div className="h-40 w-full animate-pulse rounded-lg bg-slate-200 dark:bg-slate-700" />
+    </div>
   );
 }
 

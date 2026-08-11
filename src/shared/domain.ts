@@ -1,6 +1,29 @@
 export const USER_ROLES = ["admin", "reviewer", "viewer"] as const;
 export type UserRole = (typeof USER_ROLES)[number];
 
+export function normalizeRole(value: unknown): UserRole {
+  const raw = String(value ?? "")
+    .trim()
+    .toLowerCase();
+  if ((USER_ROLES as readonly string[]).includes(raw)) {
+    return raw as UserRole;
+  }
+  return "viewer";
+}
+
+export function roleCanUpload(role: unknown): boolean {
+  const r = normalizeRole(role);
+  return r === "admin" || r === "reviewer";
+}
+
+export function roleCanReview(role: unknown): boolean {
+  return roleCanUpload(role);
+}
+
+export function roleIsAdmin(role: unknown): boolean {
+  return normalizeRole(role) === "admin";
+}
+
 export const DOCUMENT_TYPES = [
   "vendor_contract",
   "purchase_order",
@@ -151,7 +174,7 @@ export const PLANNED_INTEGRATIONS = [
     key: "erp_webhook",
     name: "ERP webhook",
     description: "Export approved results to an existing ERP system.",
-    status: "unavailable" as const,
+    status: "available" as const,
   },
   {
     key: "misa_accounting",

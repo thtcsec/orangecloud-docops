@@ -19,6 +19,7 @@ import { appendAuditEvent } from "../../domain/audit/service";
 import { canReview } from "../../auth/principal";
 import { createId, nowIso } from "../../utils/id";
 import { transitionDocumentStatus } from "../../domain/documents/service";
+import { exportApprovedDocument } from "../../services/export-approved";
 import { logger } from "../../utils/logger";
 
 const reviewsQuerySchema = paginationSchema.extend({
@@ -153,6 +154,12 @@ reviewRoutes.post(
       },
     });
 
+    let exportOutcome:
+      | { exportStatus: "skipped" }
+      | { exportStatus: "exported" }
+      | { exportStatus: "failed"; exportError: string }
+      | { exportStatus: "n/a" } = { exportStatus: "n/a" };
+
     if (task.document_id) {
       const next =
         parsed.data.decision === "approved"
@@ -172,6 +179,21 @@ reviewRoutes.post(
           decision: parsed.data.decision,
         },
       });
+
+      if (parsed.data.decision === "approved") {
+        exportOutcome = await exportApprovedDocument({
+          env: c.env,
+          db: c.env.DOCOPS_DB,
+          organizationId: principal.organizationId,
+          documentId: task.document_id,
+          actorId: principal.userId,
+          actorEmail: principal.email,
+          decision: parsed.data.decision,
+          comment: parsed.data.comment,
+          requestId: c.get("requestId") || "unknown",
+          reviewTaskId: task.id,
+        });
+      }
 
       try {
         const doc = await getDocument(
@@ -213,6 +235,16 @@ reviewRoutes.post(
       decisionId,
       decision: parsed.data.decision,
       reviewTaskId: task.id,
+      documentId: task.document_id,
+      documentStatus:
+        parsed.data.decision === "approved"
+          ? exportOutcome.exportStatus === "exported"
+            ? "EXPORTED"
+            : "APPROVED"
+          : parsed.data.decision === "rejected"
+            ? "REJECTED"
+            : "FAILED",
+      ...exportOutcome,
     });
   },
 );

@@ -3,7 +3,8 @@ import type { AppVariables } from "../middleware/context";
 import { requireAuth, requireRoles } from "../middleware/auth";
 import { uploadRateLimit } from "../middleware/rate-limit";
 import { fail, ok } from "../response";
-import { documentsQuerySchema } from "../schemas/common";
+import { documentsQuerySchema, createDocumentSchema, jsonUploadSchema } from "../schemas/common";
+import { sanitizeFilename } from "../../storage/filename";
 import { uploadDocument } from "../../services/upload";
 import {
   getDocument,
@@ -16,13 +17,14 @@ import {
 } from "../../db/repositories/documents";
 import { listRuleResultsForDocument } from "../../db/repositories/cases";
 import { listReviewDecisionsForDocument } from "../../db/repositories/reviews";
-import { listAuditEvents } from "../../domain/audit/service";
+import { appendAuditEvent, listAuditEvents } from "../../domain/audit/service";
 import { canUpload } from "../../auth/principal";
 import { createId, nowIso } from "../../utils/id";
 import { buildIdempotencyKey } from "../../domain/documents/status-machine";
 import { transitionDocumentStatus } from "../../domain/documents/service";
 import type { DocumentStatus } from "@shared/domain";
 import type { ProcessingQueueMessage } from "@shared/queue";
+import { previewKindFromMimeAndName } from "@shared/preview";
 
 export const documentRoutes = new Hono<{
   Bindings: Env;
@@ -71,21 +73,114 @@ documentRoutes.post(
     }
 
     const contentType = c.req.header("content-type") || "";
-    if (!contentType.includes("multipart/form-data")) {
-      return fail(c, 400, "VALIDATION_ERROR", "Expected multipart/form-data");
+    const maxBytes = Number(c.env.MAX_UPLOAD_BYTES || "10485760");
+    const contentLength = Number(c.req.header("content-length") || "0");
+    if (
+      Number.isFinite(maxBytes) &&
+      contentLength > 0 &&
+      contentLength > maxBytes + 65536
+    ) {
+      return fail(
+        c,
+        413,
+        "FILE_TOO_LARGE",
+        `File exceeds maximum size of ${maxBytes} bytes`,
+      );
     }
 
-    const form = await c.req.parseBody({ all: true });
-    const file = form.file;
-    if (!(file instanceof File)) {
-      return fail(c, 400, "VALIDATION_ERROR", "file is required");
-    }
+    let file: File;
+    let documentType:
+      | "vendor_contract"
+      | "purchase_order"
+      | "invoice_xml"
+      | "invoice_pdf"
+      | "unknown"
+      | undefined;
+    let caseId: string | undefined;
+    let displayName: string | undefined;
 
-    const documentType =
-      typeof form.documentType === "string" ? form.documentType : undefined;
-    const caseId = typeof form.caseId === "string" ? form.caseId : undefined;
-    const displayName =
-      typeof form.displayName === "string" ? form.displayName : undefined;
+    if (contentType.includes("application/json")) {
+      // Preferred path: JSON + base64. Multipart is often blocked by edge WAF
+      // as HTML 403 even when the user has a valid Access session.
+      let raw: unknown;
+      try {
+        raw = await c.req.json();
+      } catch {
+        return fail(c, 400, "VALIDATION_ERROR", "Invalid JSON body");
+      }
+      const parsed = jsonUploadSchema.safeParse(raw);
+      if (!parsed.success) {
+        return fail(
+          c,
+          400,
+          "VALIDATION_ERROR",
+          "Invalid upload payload",
+          parsed.error.flatten(),
+        );
+      }
+      const body = parsed.data;
+      let bytes: Uint8Array;
+      try {
+        const binary = atob(body.contentBase64);
+        bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) {
+          bytes[i] = binary.charCodeAt(i);
+        }
+      } catch {
+        return fail(c, 400, "VALIDATION_ERROR", "Invalid contentBase64");
+      }
+      if (bytes.byteLength === 0) {
+        return fail(c, 400, "VALIDATION_ERROR", "Empty file content");
+      }
+      if (Number.isFinite(maxBytes) && bytes.byteLength > maxBytes) {
+        return fail(
+          c,
+          413,
+          "FILE_TOO_LARGE",
+          `File exceeds maximum size of ${maxBytes} bytes`,
+        );
+      }
+      const safeName = sanitizeFilename(body.filename);
+      const mime =
+        body.mimeType?.trim() ||
+        (safeName.toLowerCase().endsWith(".pdf")
+          ? "application/pdf"
+          : safeName.toLowerCase().endsWith(".xml")
+            ? "application/xml"
+            : "application/octet-stream");
+      file = new File([bytes], safeName, { type: mime });
+      documentType = body.documentType;
+      caseId = body.caseId;
+      displayName = body.displayName;
+    } else if (contentType.includes("multipart/form-data")) {
+      const form = await c.req.parseBody({ all: true });
+      const formFile = form.file;
+      if (!(formFile instanceof File)) {
+        return fail(c, 400, "VALIDATION_ERROR", "file is required");
+      }
+      file = formFile;
+      const documentTypeRaw =
+        typeof form.documentType === "string" ? form.documentType : undefined;
+      caseId = typeof form.caseId === "string" ? form.caseId : undefined;
+      displayName =
+        typeof form.displayName === "string" ? form.displayName : undefined;
+      if (documentTypeRaw) {
+        const parsedType = createDocumentSchema.shape.documentType.safeParse(
+          documentTypeRaw,
+        );
+        if (!parsedType.success) {
+          return fail(c, 400, "VALIDATION_ERROR", "Invalid documentType");
+        }
+        documentType = parsedType.data;
+      }
+    } else {
+      return fail(
+        c,
+        400,
+        "VALIDATION_ERROR",
+        "Expected application/json or multipart/form-data",
+      );
+    }
 
     try {
       const result = await uploadDocument(
@@ -94,13 +189,7 @@ documentRoutes.post(
         c.get("requestId"),
         {
           file,
-          documentType: documentType as
-            | "vendor_contract"
-            | "purchase_order"
-            | "invoice_xml"
-            | "invoice_pdf"
-            | "unknown"
-            | undefined,
+          documentType,
           caseId,
           displayName,
         },
@@ -112,7 +201,17 @@ documentRoutes.post(
           ? String((err as { code: string }).code)
           : "UPLOAD_FAILED";
       const message = err instanceof Error ? err.message : "Upload failed";
-      return fail(c, 400, code, message);
+      const status =
+        code === "FILE_TOO_LARGE"
+          ? 413
+          : code === "CASE_NOT_FOUND"
+            ? 404
+            : code === "UNSUPPORTED_FILE_TYPE" ||
+                code === "MIME_MISMATCH" ||
+                code === "VALIDATION_ERROR"
+              ? 400
+              : 500;
+      return fail(c, status, code, message);
     }
   },
 );
@@ -149,6 +248,13 @@ documentRoutes.get("/documents/:documentId", requireAuth, async (c) => {
     }),
   ]);
 
+  const previewKind = currentVersion
+    ? previewKindFromMimeAndName(
+        currentVersion.mime_type,
+        currentVersion.original_filename,
+      )
+    : "unsupported";
+
   return ok(c, {
     document: doc,
     versions,
@@ -159,7 +265,8 @@ documentRoutes.get("/documents/:documentId", requireAuth, async (c) => {
     reviewDecisions: decisions,
     auditEvents: audit.items,
     preview: {
-      available: false,
+      available: previewKind !== "unsupported",
+      kind: previewKind,
     },
   });
 });
@@ -185,6 +292,8 @@ documentRoutes.get(
     const object = await c.env.DOCUMENTS_BUCKET.get(version.r2_object_key);
     if (!object) return fail(c, 404, "NOT_FOUND", "Object not found in storage");
 
+    const inline = c.req.query("disposition") === "inline";
+    const safeName = version.original_filename.replace(/"/g, "");
     const headers = new Headers();
     headers.set(
       "content-type",
@@ -192,11 +301,58 @@ documentRoutes.get(
     );
     headers.set(
       "content-disposition",
-      `attachment; filename="${version.original_filename}"`,
+      inline
+        ? `inline; filename="${safeName}"`
+        : `attachment; filename="${safeName}"`,
     );
     headers.set("cache-control", "private, no-store");
     headers.set("x-request-id", c.get("requestId"));
     return new Response(object.body, { status: 200, headers });
+  },
+);
+
+documentRoutes.post(
+  "/documents/:documentId/preview",
+  requireAuth,
+  async (c) => {
+    const principal = c.get("principal")!;
+    const documentId = c.req.param("documentId");
+    const doc = await getDocument(
+      c.env.DOCOPS_DB,
+      principal.organizationId,
+      documentId,
+    );
+    if (!doc) return fail(c, 404, "NOT_FOUND", "Document not found");
+    if (!doc.current_version_id) {
+      return fail(c, 404, "NOT_FOUND", "No document version available");
+    }
+    const version = await getVersion(c.env.DOCOPS_DB, doc.current_version_id);
+    if (!version) return fail(c, 404, "NOT_FOUND", "Version not found");
+
+    const kind = previewKindFromMimeAndName(
+      version.mime_type,
+      version.original_filename,
+    );
+    if (kind === "unsupported") {
+      return fail(c, 400, "PREVIEW_UNSUPPORTED", "Preview not available for this file type");
+    }
+
+    await appendAuditEvent(c.env.DOCOPS_DB, {
+      organizationId: principal.organizationId,
+      actorType: "user",
+      actorId: principal.userId,
+      action: "document.previewed",
+      entityType: "document",
+      entityId: documentId,
+      requestId: c.get("requestId"),
+      metadata: {
+        kind,
+        versionId: version.id,
+        mimeType: version.mime_type,
+      },
+    });
+
+    return ok(c, { recorded: true, kind });
   },
 );
 

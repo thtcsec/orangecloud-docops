@@ -1,14 +1,16 @@
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
-import { apiGet, apiPostJson } from "../../lib/api";
+import { apiFetchBlob, apiGet, apiPostJson } from "../../lib/api";
+import { formatAuditAction } from "../../lib/audit-labels";
 import { formatBytes, formatDate } from "../../lib/format";
 import { appPath } from "../../lib/paths";
 import { isDocumentInFlight, isRunInFlight } from "../../lib/processing";
 import {
   Button,
+  DetailSkeleton,
   EmptyState,
   ErrorBanner,
-  LoadingBlock,
   PageHeader,
   Panel,
   PanelHeader,
@@ -17,6 +19,8 @@ import {
   StatusBadge,
 } from "../../components/ui";
 import { useI18n } from "../../i18n";
+
+type PreviewKind = "pdf" | "xml" | "unsupported";
 
 type Detail = {
   document: {
@@ -80,11 +84,126 @@ type Detail = {
     actor_type: string;
     created_at: string;
   }>;
-  preview: { available: boolean; message?: string };
+  preview: { available: boolean; kind?: PreviewKind; message?: string };
 };
 
-export function DocumentDetailPage() {
+function DocumentPreviewPanel({
+  documentId,
+  kind,
+  available,
+}: {
+  documentId: string;
+  kind: PreviewKind;
+  available: boolean;
+}) {
   const { t } = useI18n();
+  const qc = useQueryClient();
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const [xmlText, setXmlText] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const auditedRef = useRef(false);
+
+  useEffect(() => {
+    if (!available || kind === "unsupported") return;
+    let revoked: string | null = null;
+    let cancelled = false;
+
+    async function load() {
+      setLoading(true);
+      setError(null);
+      try {
+        const { blob } = await apiFetchBlob(
+          `/api/documents/${documentId}/download?disposition=inline`,
+        );
+        if (cancelled) return;
+        if (kind === "xml") {
+          const text = await blob.text();
+          if (cancelled) return;
+          setXmlText(text);
+        } else {
+          const url = URL.createObjectURL(blob);
+          revoked = url;
+          setBlobUrl(url);
+        }
+        if (!auditedRef.current) {
+          auditedRef.current = true;
+          try {
+            await apiPostJson(`/api/documents/${documentId}/preview`, {});
+            void qc.invalidateQueries({ queryKey: ["audit"] });
+          } catch {
+            // Preview still works if audit write fails.
+          }
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(
+            err instanceof Error ? err.message : t.documentDetail.previewFailed,
+          );
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    void load();
+    return () => {
+      cancelled = true;
+      if (revoked) URL.revokeObjectURL(revoked);
+    };
+  }, [documentId, kind, available, qc, t.documentDetail.previewFailed]);
+
+  if (!available || kind === "unsupported") {
+    return (
+      <div className="px-4 py-6 text-sm text-ink-500">
+        {t.documentDetail.previewUnsupported}
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="px-4 py-6 text-sm text-ink-500">
+        {t.documentDetail.previewLoading}
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="px-4 py-4">
+        <ErrorBanner message={error} />
+      </div>
+    );
+  }
+
+  if (kind === "pdf" && blobUrl) {
+    return (
+      <iframe
+        title={t.documentDetail.preview}
+        src={blobUrl}
+        className="h-[min(70vh,640px)] w-full border-0 bg-slate-100 dark:bg-slate-900"
+      />
+    );
+  }
+
+  if (kind === "xml" && xmlText != null) {
+    return (
+      <pre className="max-h-[min(70vh,640px)] overflow-auto bg-slate-950 px-4 py-3 font-mono text-xs leading-relaxed text-slate-100">
+        {xmlText}
+      </pre>
+    );
+  }
+
+  return (
+    <div className="px-4 py-6 text-sm text-ink-500">
+      {t.documentDetail.previewUnsupported}
+    </div>
+  );
+}
+
+export function DocumentDetailPage() {
+  const { t, locale } = useI18n();
   const { documentId = "" } = useParams();
   const qc = useQueryClient();
   const query = useQuery({
@@ -113,7 +232,7 @@ export function DocumentDetailPage() {
     },
   });
 
-  if (query.isLoading) return <LoadingBlock label={t.common.loading} />;
+  if (query.isLoading) return <DetailSkeleton />;
   if (query.isError) {
     return (
       <QueryErrorState
@@ -128,6 +247,8 @@ export function DocumentDetailPage() {
   }
   const data = query.data!;
   const busy = isDocumentInFlight(data.document.status);
+  const status = data.document.status;
+  const previewKind = data.preview.kind || "unsupported";
 
   return (
     <div className="space-y-4">
@@ -158,6 +279,26 @@ export function DocumentDetailPage() {
       />
       {busy ? (
         <SoftBanner tone="ok">{t.common.processingLive}</SoftBanner>
+      ) : null}
+      {status === "NEEDS_REVIEW" ? (
+        <SoftBanner tone="warn">
+          {t.documentDetail.statusNeedsReview}{" "}
+          <Link
+            className="font-medium underline underline-offset-2"
+            to={appPath("/review")}
+          >
+            {t.documentDetail.openReview}
+          </Link>
+        </SoftBanner>
+      ) : null}
+      {status === "APPROVED" ? (
+        <SoftBanner tone="ok">{t.documentDetail.statusApproved}</SoftBanner>
+      ) : null}
+      {status === "EXPORTED" ? (
+        <SoftBanner tone="ok">{t.documentDetail.statusExported}</SoftBanner>
+      ) : null}
+      {status === "REJECTED" ? (
+        <SoftBanner tone="warn">{t.documentDetail.statusRejected}</SoftBanner>
       ) : null}
       {reprocess.isSuccess ? (
         <SoftBanner tone="ok">{t.documentDetail.reprocessQueued}</SoftBanner>
@@ -209,14 +350,20 @@ export function DocumentDetailPage() {
           </dl>
         </Panel>
 
-        <Panel className="lg:col-span-2">
+        <Panel className="lg:col-span-2 overflow-hidden">
           <PanelHeader
             title={t.documentDetail.preview}
-            subtitle={t.documentDetail.previewSub}
+            subtitle={
+              data.preview.available
+                ? t.documentDetail.previewReady
+                : t.documentDetail.previewUnsupported
+            }
           />
-          <div className="px-4 py-6 text-sm text-ink-500">
-            {t.documentDetail.previewSub}
-          </div>
+          <DocumentPreviewPanel
+            documentId={documentId}
+            kind={previewKind}
+            available={Boolean(data.preview.available)}
+          />
         </Panel>
       </div>
 
@@ -365,9 +512,12 @@ export function DocumentDetailPage() {
           <ul className="divide-y divide-slate-100">
             {data.auditEvents.map((e) => (
               <li key={e.id} className="px-4 py-3 text-sm">
-                <div className="font-medium">{e.action}</div>
+                <div className="font-medium">
+                  {formatAuditAction(e.action, locale)}
+                </div>
                 <div className="text-xs text-ink-500">
-                  {e.actor_type} · {formatDate(e.created_at)}
+                  <span className="font-mono">{e.action}</span> · {e.actor_type}{" "}
+                  · {formatDate(e.created_at)}
                 </div>
               </li>
             ))}

@@ -1,6 +1,6 @@
 import { createRemoteJWKSet, decodeJwt, jwtVerify } from "jose";
 import type { UserRole } from "@shared/domain";
-import { USER_ROLES } from "@shared/domain";
+import { normalizeRole } from "@shared/domain";
 import { createId, nowIso } from "../utils/id";
 import { ensureDefaultOrganization } from "../db/repositories/organizations";
 import type { OrganizationRow } from "../db/schema/types";
@@ -44,10 +44,7 @@ function isLocalAuthEnabled(env: Env): boolean {
 }
 
 function parseRole(value: string | undefined): UserRole {
-  if (value && (USER_ROLES as readonly string[]).includes(value)) {
-    return value as UserRole;
-  }
-  return "viewer";
+  return normalizeRole(value);
 }
 
 async function getDefaultOrg(env: Env, now: string): Promise<OrganizationRow> {
@@ -315,39 +312,36 @@ export async function resolvePrincipal(
   if (!auth.ok) return null;
 
   const identity = auth.identity;
+  const bootstrap = (env.BOOTSTRAP_ADMIN_EMAILS || "")
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+  const emailKey = identity.email.toLowerCase();
+  const shouldBeAdmin = bootstrap.includes(emailKey);
+
   let user = await findUserByEmail(env.DOCOPS_DB, org.id, identity.email);
   if (!user) {
-    const bootstrap = (env.BOOTSTRAP_ADMIN_EMAILS || "")
-      .split(",")
-      .map((e) => e.trim().toLowerCase())
-      .filter(Boolean);
-    const role: UserRole = bootstrap.includes(identity.email.toLowerCase())
-      ? "admin"
-      : "viewer";
     user = await upsertLocalUser(env.DOCOPS_DB, {
       id: createId("usr"),
       organizationId: org.id,
       email: identity.email,
       displayName: identity.name || identity.email,
-      role,
+      role: shouldBeAdmin ? "admin" : "viewer",
       now,
     });
-  } else if (
-    user.role === "viewer" &&
-    (env.BOOTSTRAP_ADMIN_EMAILS || "")
-      .split(",")
-      .map((e) => e.trim().toLowerCase())
-      .filter(Boolean)
-      .includes(identity.email.toLowerCase())
-  ) {
+  } else if (shouldBeAdmin && normalizeRole(user.role) !== "admin") {
+    // Always re-assert bootstrap admins (fixes stale viewer rows).
     user = await upsertLocalUser(env.DOCOPS_DB, {
       id: user.id,
       organizationId: org.id,
       email: user.email,
-      displayName: user.display_name,
+      displayName: identity.name || user.display_name,
       role: "admin",
       now,
     });
+  } else {
+    // Normalize role from D1 in case of legacy casing.
+    user = { ...user, role: normalizeRole(user.role) };
   }
 
   return {
@@ -355,7 +349,7 @@ export async function resolvePrincipal(
     organizationId: org.id,
     email: user.email,
     displayName: user.display_name,
-    role: user.role,
+    role: normalizeRole(user.role),
     authSource: "cloudflare_access",
   };
 }

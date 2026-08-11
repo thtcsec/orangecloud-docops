@@ -5,7 +5,7 @@ import { formatDate } from "../../lib/format";
 import { appPath } from "../../lib/paths";
 import {
   EmptyState,
-  LoadingBlock,
+  DashboardSkeleton,
   PageHeader,
   Panel,
   PanelHeader,
@@ -41,7 +41,7 @@ export function DashboardPage() {
       (q.state.data?.stats.processing ?? 0) > 0 ? 5000 : false,
   });
 
-  if (query.isLoading) return <LoadingBlock label={t.common.loading} />;
+  if (query.isLoading) return <DashboardSkeleton />;
   if (query.isError) {
     return (
       <QueryErrorState

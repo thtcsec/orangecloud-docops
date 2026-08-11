@@ -7,10 +7,9 @@
   "assets": {
     "not_found_handling": "single-page-application",
     "binding": "ASSETS",
-    // Full-page navigations to /api/* must hit the Worker (Access kickoff,
-    // JSON APIs). Without this, SPA not_found_handling serves index.html and
-    // the client catch-all redirects /api/... → /.
-    "run_worker_first": ["/api", "/api/*"]
+    // Always enter the Worker first. The Worker routes /api/* itself and
+    // forwards everything else to ASSETS (also applies security headers).
+    "run_worker_first": true
   },
   "observability": {
     "enabled": true,
@@ -164,7 +163,7 @@
         "ENVIRONMENT": "production",
         "APP_BASE_URL": "https://docops.orangecloud.vn",
         "LOCAL_DEV_AUTH_ENABLED": "false",
-        "MAX_UPLOAD_BYTES": "52428800",
+        "MAX_UPLOAD_BYTES": "26214400",
         "PROCESSING_VERSION": "v1",
         "UPLOAD_RATE_LIMIT": "20",
         "API_RATE_LIMIT": "90",

@@ -9,10 +9,11 @@ import {
   EmptyState,
   ErrorBanner,
   Field,
-  LoadingBlock,
   PageHeader,
   Panel,
   QueryErrorState,
+  SoftBanner,
+  SplitListSkeleton,
   StatusBadge,
   TextArea,
 } from "../../components/ui";
@@ -30,12 +31,23 @@ type ReviewsResponse = {
   total: number;
 };
 
+type DecisionResponse = {
+  decisionId: string;
+  decision: string;
+  reviewTaskId: string;
+  documentId?: string | null;
+  documentStatus?: string;
+  exportStatus?: "skipped" | "exported" | "failed" | "n/a";
+  exportError?: string;
+};
+
 export function ReviewPage() {
   const { t } = useI18n();
   const qc = useQueryClient();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [comment, setComment] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   const query = useQuery({
     queryKey: ["reviews", "open"],
@@ -50,17 +62,34 @@ export function ReviewPage() {
       documentId?: string | null;
       caseId?: string | null;
     }) =>
-      apiPostJson(`/api/reviews/${payload.reviewTaskId}/decision`, {
-        decision: payload.decision,
-        comment: payload.comment,
-      }),
-    onSuccess: (_data, variables) => {
+      apiPostJson<DecisionResponse>(
+        `/api/reviews/${payload.reviewTaskId}/decision`,
+        {
+          decision: payload.decision,
+          comment: payload.comment,
+        },
+      ),
+    onSuccess: (data, variables) => {
       setComment("");
       setSelectedId(null);
       setError(null);
+      if (variables.decision === "approved") {
+        if (data.exportStatus === "exported") {
+          setSuccess(t.review.approveExported);
+        } else if (data.exportStatus === "failed") {
+          setSuccess(t.review.approveExportFailed);
+        } else {
+          setSuccess(t.review.approveDone);
+        }
+      } else if (variables.decision === "rejected") {
+        setSuccess(t.review.rejectDone);
+      } else {
+        setSuccess(t.review.correctionDone);
+      }
       void qc.invalidateQueries({ queryKey: ["reviews"] });
       void qc.invalidateQueries({ queryKey: ["dashboard"] });
       void qc.invalidateQueries({ queryKey: ["documents"] });
+      void qc.invalidateQueries({ queryKey: ["audit"] });
       if (variables.documentId) {
         void qc.invalidateQueries({
           queryKey: ["document", variables.documentId],
@@ -71,11 +100,12 @@ export function ReviewPage() {
       }
     },
     onError: (err) => {
+      setSuccess(null);
       setError(err instanceof Error ? err.message : t.common.actionFailed);
     },
   });
 
-  if (query.isLoading) return <LoadingBlock label={t.common.loading} />;
+  if (query.isLoading) return <SplitListSkeleton />;
   if (query.isError) {
     return (
       <QueryErrorState
@@ -96,6 +126,12 @@ export function ReviewPage() {
         title={t.review.title}
         description={t.review.description}
       />
+
+      {success ? (
+        <div className="mb-4">
+          <SoftBanner tone="ok">{success}</SoftBanner>
+        </div>
+      ) : null}
 
       <div className="grid gap-4 lg:grid-cols-5">
         <Panel className="lg:col-span-2">
@@ -142,6 +178,7 @@ export function ReviewPage() {
                   {t.review.task} {selected.id}
                 </h2>
                 <p className="mt-1 text-sm text-ink-500">{selected.reason}</p>
+                <p className="mt-2 text-xs text-ink-500">{t.review.approveHint}</p>
               </div>
               <div className="flex flex-wrap gap-3 text-sm">
                 {selected.document_id ? (

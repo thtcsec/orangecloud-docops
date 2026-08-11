@@ -24,6 +24,10 @@ export const vi: TranslationSchema = {
     accessRequiredBody:
       "Đăng nhập Cloudflare Access để mở DocOps. Bấm nút bên dưới để tiếp tục.",
     reload: "Đăng nhập Access",
+    loadFailedTitle: "Không tải được phiên",
+    loadFailedBody:
+      "API không phản hồi. Kiểm tra kết nối rồi thử lại. Nếu vẫn lỗi, đăng nhập lại.",
+    retry: "Thử lại",
   },
   common: {
     loading: "Đang tải…",
@@ -204,17 +208,24 @@ export const vi: TranslationSchema = {
     emptyBody: "Điều chỉnh bộ lọc, hoặc tải PDF/XML để bắt đầu.",
     uploadTitle: "Tải chứng từ",
     uploadDescription:
-      "Hỗ trợ PDF hoặc XML. Bản gốc lưu riêng tư trên R2; không ghi đè phiên bản cũ.",
-    drop: "Thả PDF hoặc XML vào đây",
+      "PDF hoặc XML (một hoặc nhiều file). Bản gốc lưu riêng tư trên R2; không ghi đè phiên bản cũ.",
+    drop: "Thả file PDF hoặc XML vào đây",
     maxSizeHint: "Giới hạn dung lượng theo cấu hình triển khai.",
     selected: "Đã chọn",
+    clearFiles: "Xóa lựa chọn",
+    someUnsupported: "Bỏ qua file không hỗ trợ: {names}",
+    batchSummary: "Tải thành công {ok} · lỗi {fail}",
+    submitMany: "Tải {count} file",
     documentType: "Loại chứng từ (tuỳ chọn)",
     autoUnknown: "Tự nhận / chưa rõ",
     caseId: "ID hồ sơ (tuỳ chọn)",
-    caseIdHint: "Gắn với hồ sơ có sẵn nếu đã có",
+    caseIdHint: "Gắn mọi file trong lô này vào hồ sơ có sẵn",
     uploading: "Đang tải",
     submit: "Tải lên",
-    chooseFile: "Chọn file PDF hoặc XML.",
+    chooseFile: "Chọn một hoặc nhiều file PDF hoặc XML.",
+    unsupportedType: "Chỉ hỗ trợ file PDF và XML.",
+    uploadForbidden:
+      "Vai trò hiện tại không được tải chứng từ. Nhờ admin cấp Reviewer hoặc Admin.",
     duplicateWarn:
       "Nội dung tệp đã tồn tại (cùng checksum). Vẫn lưu phiên bản mới.",
     existingDocument: "Chứng từ đã có",
@@ -234,8 +245,12 @@ export const vi: TranslationSchema = {
     case: "Hồ sơ",
     openCase: "Mở hồ sơ",
     preview: "Xem trước",
-    previewSub:
-      "Chưa hỗ trợ xem trước trong app. Tải bản gốc để xem nội dung.",
+    previewSub: "Xem trước tải bản gốc từ kho lưu trữ riêng tư.",
+    previewReady: "Xem trước phiên bản hiện tại.",
+    previewUnsupported:
+      "Xem trước hỗ trợ PDF và XML. Loại khác hãy tải bản gốc.",
+    previewLoading: "Đang tải xem trước…",
+    previewFailed: "Không tải được xem trước. Thử tải bản gốc.",
     versions: "Phiên bản",
     timeline: "Lịch sử xử lý",
     noRunsTitle: "Chưa có lần xử lý",
@@ -256,6 +271,13 @@ export const vi: TranslationSchema = {
     auditEvents: "Sự kiện kiểm toán",
     attempt: "Lần thử",
     noComment: "Không có ghi chú",
+    statusNeedsReview:
+      "Đang chờ rà soát. Bấm Duyệt là xong luồng chứng từ.",
+    openReview: "Mở hàng đợi rà soát",
+    statusApproved:
+      "Đã duyệt — xong. Cấu hình ERP webhook ở Tích hợp để tự xuất khi duyệt.",
+    statusExported: "Đã duyệt và gửi sang ERP webhook. Luồng hoàn tất.",
+    statusRejected: "Đã từ chối. Chứng từ này sẽ không được xuất.",
   },
   cases: {
     title: "Hồ sơ",
@@ -289,7 +311,20 @@ export const vi: TranslationSchema = {
     linked: "Chứng từ liên kết",
     linkedSub: "Chứng từ gắn với hồ sơ này",
     noLinkedTitle: "Chưa có chứng từ liên kết",
-    noLinkedBody: "Gắn hợp đồng, PO hoặc hoá đơn khi tải lên.",
+    noLinkedBody:
+      "Gắn hợp đồng, PO hoặc hoá đơn khi tải lên — hoặc dùng form bên dưới.",
+    linkTitle: "Gắn chứng từ có sẵn",
+    linkHint: "Dán ID chứng từ từ danh sách Chứng từ.",
+    linkDocumentId: "ID chứng từ",
+    linkRelationship: "Quan hệ",
+    linkAction: "Gắn chứng từ",
+    linkSuccess: "Đã gắn chứng từ vào hồ sơ.",
+    relationships: {
+      contract: "Hợp đồng",
+      purchase_order: "Đơn hàng (PO)",
+      invoice: "Hoá đơn",
+      supporting_document: "Tài liệu hỗ trợ",
+    },
     exceptionsTitle: "Ngoại lệ",
     noExceptionsTitle: "Không có ngoại lệ",
     noExceptionsBody: "Kết quả quy tắc fail/warning sẽ hiện ở đây.",
@@ -317,10 +352,66 @@ export const vi: TranslationSchema = {
     approve: "Duyệt",
     reject: "Từ chối",
     correction: "Yêu cầu sửa",
+    approveHint:
+      "Duyệt sẽ đóng rà soát và đánh dấu chứng từ xong. Nếu đã cấu hình ERP webhook, hệ thống tự đẩy JSON.",
+    approveDone:
+      "Đã duyệt — xong. Chứng từ ở trạng thái APPROVED. Vào Tích hợp để gắn ERP webhook cho lần sau.",
+    approveExported:
+      "Đã duyệt và gửi sang ERP webhook. Trạng thái chứng từ: EXPORTED.",
+    approveExportFailed:
+      "Đã duyệt nhưng gửi ERP webhook lỗi. Chứng từ vẫn APPROVED — kiểm tra Tích hợp / Kiểm toán.",
+    rejectDone: "Đã từ chối. Chứng từ sẽ không được xuất.",
+    correctionDone: "Đã yêu cầu sửa. Chứng từ đánh dấu failed để xử lý lại.",
   },
   rules: {
     title: "Quy tắc",
-    description: "Các quy tắc kiểm tra chạy trong quá trình xử lý chứng từ.",
+    description:
+      "Quy tắc kiểm tra khi xử lý chứng từ. Quy tắc Đang dùng chạy ngay; quy tắc Dự kiến cần thêm dữ liệu hồ sơ.",
+    active: "Đang dùng",
+    planned: "Dự kiến",
+    note: "{active}/{total} quy tắc đang dùng trong bản này. Quy tắc đang dùng chạy trên trường hoá đơn đã trích; quy tắc dự kiến cần hợp đồng/PO liên kết.",
+    catalog: {
+      supplier_identity_match: {
+        name: "Khớp danh tính nhà cung cấp",
+        description:
+          "Tên và MST trên hoá đơn phải khớp hợp đồng liên kết.",
+      },
+      invoice_contract_date_valid: {
+        name: "Ngày hoá đơn trong hạn hợp đồng",
+        description:
+          "Ngày phát hành hoá đơn phải nằm trong thời hạn hiệu lực hợp đồng.",
+      },
+      invoice_within_contract_ceiling: {
+        name: "Hoá đơn trong hạn mức hợp đồng",
+        description:
+          "Tổng giá trị hoá đơn không vượt trần giá trị hợp đồng.",
+      },
+      invoice_within_po_value: {
+        name: "Hoá đơn trong giá trị PO",
+        description:
+          "Tổng hoá đơn không vượt giá trị đơn hàng liên kết.",
+      },
+      invoice_arithmetic_valid: {
+        name: "Số học hoá đơn hợp lệ",
+        description:
+          "Dòng hàng, thuế và tổng phải khớp số học.",
+      },
+      payment_term_match: {
+        name: "Khớp điều khoản thanh toán",
+        description:
+          "Điều khoản thanh toán trên hoá đơn phải khớp hợp đồng.",
+      },
+      duplicate_invoice_check: {
+        name: "Kiểm tra hoá đơn trùng",
+        description:
+          "Số hoá đơn + MST nhà cung cấp phải duy nhất trong tổ chức.",
+      },
+      invoice_xml_pdf_consistency: {
+        name: "Nhất quán XML/PDF hoá đơn",
+        description:
+          "Trường XML hoá đơn phải nhất quán với bản PDF.",
+      },
+    },
   },
   audit: {
     title: "Kiểm toán",
@@ -328,6 +419,7 @@ export const vi: TranslationSchema = {
     actorId: "ID người thực hiện",
     entityType: "Loại đối tượng",
     action: "Hành động",
+    actionPlaceholder: "vd. document.uploaded",
     entityId: "ID chứng từ / hồ sơ",
     fromDate: "Từ ngày",
     when: "Thời gian",
@@ -337,15 +429,36 @@ export const vi: TranslationSchema = {
     emptyTitle: "Chưa có sự kiện",
     emptyBody: "Sự kiện xuất hiện sau tải lên, xử lý hoặc quyết định rà soát.",
     adminOnly: "Chỉ admin được xem kiểm toán.",
+    entityTypes: {
+      document: "Chứng từ",
+      case: "Hồ sơ",
+      review_task: "Nhiệm vụ rà soát",
+      processing_run: "Lần xử lý",
+      integration: "Tích hợp",
+    },
   },
   integrations: {
     title: "Tích hợp",
     description:
-      "Kết nối dự kiến cho trích xuất và xuất dữ liệu. Bản hiện tại chưa nối nhà cung cấp nào.",
+      "Kết nối xuất dữ liệu và trích xuất. ERP webhook đã dùng được ngay.",
     roadmapNote:
-      "Trang này là danh mục lộ trình để đội dự án nắm các bước tiếp theo. Giao diện kết nối sẽ có ở bản sau.",
+      "ERP webhook hoạt động ngay: lưu URL, gửi thử, rồi duyệt chứng từ để đẩy JSON. Các kết nối khác vẫn nằm trên lộ trình.",
     planned: "Dự kiến",
+    available: "Sẵn sàng",
+    connected: "Đã kết nối",
     availability: "Chưa khả dụng trong bản hiện tại.",
+    adminOnly: "Chỉ admin được cấu hình tích hợp.",
+    erpUrlLabel: "URL webhook",
+    erpSave: "Lưu URL",
+    erpTest: "Gửi thử",
+    erpClear: "Xóa",
+    erpSaved: "Đã lưu ERP webhook. Lần duyệt tiếp theo sẽ POST JSON tới URL này.",
+    erpCleared: "Đã xóa ERP webhook.",
+    erpTestOk: "Gửi thử thành công.",
+    erpTestFailed: "Gửi thử thất bại. Kiểm tra URL rồi thử lại.",
+    erpConfigured: "Đã cấu hình: {url}",
+    erpNotConfigured:
+      "Chưa cấu hình. Dán endpoint HTTPS nhận POST JSON.",
     catalog: {
       workers_ai: {
         name: "Workers AI",
@@ -362,7 +475,8 @@ export const vi: TranslationSchema = {
       },
       erp_webhook: {
         name: "ERP webhook",
-        description: "Đẩy kết quả đã duyệt vào ERP hiện có.",
+        description:
+          "Khi duyệt, POST JSON metadata chứng từ sang ERP (hoặc endpoint HTTP bất kỳ).",
       },
       misa_accounting: {
         name: "MISA / kế toán",

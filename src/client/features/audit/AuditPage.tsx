@@ -1,6 +1,11 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiGet, ApiError } from "../../lib/api";
+import {
+  formatAuditAction,
+  formatAuditActor,
+  formatAuditEntity,
+} from "../../lib/audit-labels";
 import { formatDate } from "../../lib/format";
 import {
   DataTable,
@@ -8,10 +13,10 @@ import {
   ErrorBanner,
   Field,
   Input,
-  LoadingBlock,
   PageHeader,
   Panel,
   Select,
+  TableRowsSkeleton,
 } from "../../components/ui";
 import { useI18n } from "../../i18n";
 
@@ -30,7 +35,7 @@ type AuditResponse = {
 };
 
 export function AuditPage() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [actor, setActor] = useState("");
   const [entityType, setEntityType] = useState("");
   const [action, setAction] = useState("");
@@ -71,17 +76,24 @@ export function AuditPage() {
               onChange={(e) => setEntityType(e.target.value)}
             >
               <option value="">{t.common.all}</option>
-              <option value="document">document</option>
-              <option value="case">case</option>
-              <option value="review_task">review_task</option>
-              <option value="processing_run">processing_run</option>
+              <option value="document">{t.audit.entityTypes.document}</option>
+              <option value="case">{t.audit.entityTypes.case}</option>
+              <option value="review_task">
+                {t.audit.entityTypes.review_task}
+              </option>
+              <option value="processing_run">
+                {t.audit.entityTypes.processing_run}
+              </option>
+              <option value="integration">
+                {t.audit.entityTypes.integration}
+              </option>
             </Select>
           </Field>
           <Field label={t.audit.action}>
             <Input
               value={action}
               onChange={(e) => setAction(e.target.value)}
-              placeholder="document.uploaded"
+              placeholder={t.audit.actionPlaceholder}
             />
           </Field>
           <Field label={t.audit.entityId}>
@@ -101,8 +113,8 @@ export function AuditPage() {
       </Panel>
 
       <Panel>
-        {query.isLoading ? <LoadingBlock label={t.common.loading} /> : null}
-        {query.isError ? (
+        {query.isLoading ? <TableRowsSkeleton rows={8} /> : null}
+        {!query.isLoading && query.isError ? (
           <div className="p-4">
             <ErrorBanner
               message={
@@ -138,12 +150,24 @@ export function AuditPage() {
             {query.data.items.map((item) => (
               <tr key={item.id}>
                 <td className="px-4 py-3">{formatDate(item.created_at)}</td>
-                <td className="px-4 py-3 font-medium">{item.action}</td>
-                <td className="px-4 py-3 text-xs">
-                  {item.actor_type}:{item.actor_id || t.common.none}
+                <td className="px-4 py-3">
+                  <div className="font-medium text-ink-900">
+                    {formatAuditAction(item.action, locale)}
+                  </div>
+                  <div className="mt-0.5 font-mono text-xs text-ink-500">
+                    {item.action}
+                  </div>
                 </td>
-                <td className="px-4 py-3 font-mono text-xs">
-                  {item.entity_type}:{item.entity_id}
+                <td className="px-4 py-3 text-sm">
+                  {formatAuditActor(
+                    item.actor_type,
+                    item.actor_id,
+                    locale,
+                    t.common.none,
+                  )}
+                </td>
+                <td className="px-4 py-3 text-sm">
+                  {formatAuditEntity(item.entity_type, item.entity_id, locale)}
                 </td>
                 <td className="px-4 py-3 font-mono text-xs">
                   {item.request_id || t.common.none}

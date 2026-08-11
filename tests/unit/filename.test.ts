@@ -13,6 +13,12 @@ describe("sanitizeFilename", () => {
     expect(sanitizeFilename("...")).toBe("document.bin");
     expect(sanitizeFilename("")).toBe("document.bin");
   });
+
+  it("preserves extension for CJK-only basenames", () => {
+    expect(sanitizeFilename("报告.pdf")).toBe("document.pdf");
+    expect(sanitizeFilename("发票.XML")).toBe("document.xml");
+    expect(sanitizeFilename("báo giá.pdf")).toMatch(/\.pdf$/);
+  });
 });
 
 describe("getExtension", () => {

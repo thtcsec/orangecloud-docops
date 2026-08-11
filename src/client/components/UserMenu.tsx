@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { useEffect, useId, useRef, useState } from "react";
+import { roleIsAdmin } from "@shared/domain";
 import { appPath } from "../lib/paths";
 import { useI18n } from "../i18n";
 
@@ -27,7 +28,7 @@ export function UserMenu({ user }: { user: SessionUser }) {
 
   const roleKey = user.role as keyof typeof t.roles.labels;
   const roleLabel = t.roles.labels[roleKey] || user.role;
-  const isAdmin = user.role === "admin";
+  const isAdmin = roleIsAdmin(user.role);
 
   useEffect(() => {
     if (!open) return;

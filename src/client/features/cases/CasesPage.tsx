@@ -1,16 +1,18 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
+import { RELATIONSHIP_TYPES } from "@shared/domain";
 import { apiGet, apiPostJson } from "../../lib/api";
+import { formatAuditAction } from "../../lib/audit-labels";
 import { formatDate } from "../../lib/format";
 import { appPath } from "../../lib/paths";
 import {
   Button,
+  DetailSkeleton,
   EmptyState,
   ErrorBanner,
   Field,
   Input,
-  LoadingBlock,
   PageHeader,
   Panel,
   PanelHeader,
@@ -18,6 +20,8 @@ import {
   SoftBanner,
   StatusBadge,
   DataTable,
+  TablePageSkeleton,
+  Select,
 } from "../../components/ui";
 import { useI18n } from "../../i18n";
 
@@ -115,7 +119,7 @@ export function CasesPage() {
     },
   });
 
-  if (query.isLoading) return <LoadingBlock label={t.common.loading} />;
+  if (query.isLoading) return <TablePageSkeleton rows={5} />;
   if (query.isError) {
     return (
       <QueryErrorState
@@ -256,15 +260,42 @@ export function CasesPage() {
 }
 
 export function CaseDetailPage() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const { caseId = "" } = useParams();
+  const qc = useQueryClient();
+  const [linkDocumentId, setLinkDocumentId] = useState("");
+  const [relationshipType, setRelationshipType] = useState<string>("invoice");
+  const [linkError, setLinkError] = useState<string | null>(null);
+  const [linkOk, setLinkOk] = useState(false);
+
   const query = useQuery({
     queryKey: ["case", caseId],
     queryFn: () => apiGet<CaseDetail>(`/api/cases/${caseId}`),
     enabled: Boolean(caseId),
   });
 
-  if (query.isLoading) return <LoadingBlock label={t.common.loading} />;
+  const linkDoc = useMutation({
+    mutationFn: () =>
+      apiPostJson(`/api/cases/${caseId}/documents`, {
+        documentId: linkDocumentId.trim(),
+        relationshipType,
+      }),
+    onSuccess: () => {
+      setLinkError(null);
+      setLinkOk(true);
+      setLinkDocumentId("");
+      void qc.invalidateQueries({ queryKey: ["case", caseId] });
+      void qc.invalidateQueries({ queryKey: ["cases"] });
+      void qc.invalidateQueries({ queryKey: ["documents"] });
+      void qc.invalidateQueries({ queryKey: ["audit"] });
+    },
+    onError: (err) => {
+      setLinkOk(false);
+      setLinkError(err instanceof Error ? err.message : t.common.actionFailed);
+    },
+  });
+
+  if (query.isLoading) return <DetailSkeleton />;
   if (query.isError) {
     return (
       <QueryErrorState
@@ -286,6 +317,8 @@ export function CaseDetailPage() {
     { label: t.cases.fail, value: data.validationSummary.fail },
     { label: t.cases.notEvaluated, value: data.validationSummary.notEvaluated },
   ];
+
+  const relLabels = t.cases.relationships;
 
   return (
     <div className="space-y-4">
@@ -341,7 +374,9 @@ export function CaseDetailPage() {
                 <div>
                   <div className="font-medium">{link.document.display_name}</div>
                   <div className="text-xs text-ink-500">
-                    {link.relationship_type} · {link.document.document_type}
+                    {relLabels[link.relationship_type as keyof typeof relLabels] ||
+                      link.relationship_type}{" "}
+                    · {link.document.document_type}
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -357,6 +392,47 @@ export function CaseDetailPage() {
             ))}
           </ul>
         )}
+
+        <div className="space-y-3 border-t border-slate-100 px-4 py-4 dark:border-slate-800">
+          <h3 className="text-sm font-semibold text-ink-900">
+            {t.cases.linkTitle}
+          </h3>
+          <p className="text-xs text-ink-500">{t.cases.linkHint}</p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label={t.cases.linkDocumentId}>
+              <Input
+                value={linkDocumentId}
+                onChange={(e) => {
+                  setLinkDocumentId(e.target.value);
+                  setLinkOk(false);
+                }}
+                placeholder="doc_…"
+              />
+            </Field>
+            <Field label={t.cases.linkRelationship}>
+              <Select
+                value={relationshipType}
+                onChange={(e) => setRelationshipType(e.target.value)}
+              >
+                {RELATIONSHIP_TYPES.map((type) => (
+                  <option key={type} value={type}>
+                    {relLabels[type as keyof typeof relLabels] || type}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          </div>
+          {linkError ? <ErrorBanner message={linkError} /> : null}
+          {linkOk ? (
+            <SoftBanner tone="ok">{t.cases.linkSuccess}</SoftBanner>
+          ) : null}
+          <Button
+            onClick={() => linkDoc.mutate()}
+            disabled={linkDoc.isPending || !linkDocumentId.trim()}
+          >
+            {t.cases.linkAction}
+          </Button>
+        </div>
       </Panel>
 
       <Panel>
@@ -416,8 +492,11 @@ export function CaseDetailPage() {
           <ul className="divide-y divide-slate-100">
             {data.auditEvents.map((e) => (
               <li key={e.id} className="px-4 py-3 text-sm">
-                <div className="font-medium">{e.action}</div>
+                <div className="font-medium">
+                  {formatAuditAction(e.action, locale)}
+                </div>
                 <div className="text-xs text-ink-500">
+                  <span className="font-mono">{e.action}</span> ·{" "}
                   {formatDate(e.created_at)}
                 </div>
               </li>

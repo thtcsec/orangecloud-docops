@@ -201,6 +201,71 @@ describe("document lifecycle smoke", () => {
       ).toBe(true);
     }
   });
+
+  it("accepts unicode original names via displayName + sanitized file part", async () => {
+    const xml = `<?xml version="1.0"?><Invoice><Number>INV-UNI-1</Number><Total>1</Total></Invoice>`;
+    const form = new FormData();
+    form.set(
+      "file",
+      new File([xml], "b_o_gi_b_o_an-1607.xml", { type: "application/xml" }),
+    );
+    form.set("displayName", "báo giá bảo an-1607.xml");
+    form.set("documentType", "invoice_xml");
+
+    const uploadRes = await SELF.fetch("http://localhost/api/documents", {
+      method: "POST",
+      body: form,
+      headers: { Accept: "application/json" },
+    });
+    expect(uploadRes.headers.get("content-type") || "").toMatch(/json/i);
+    expect(uploadRes.status).toBe(201);
+    const uploadBody = await json<{
+      ok: true;
+      data: { documentId: string };
+    }>(uploadRes);
+    const detailRes = await SELF.fetch(
+      `http://localhost/api/documents/${uploadBody.data.documentId}`,
+    );
+    const detail = await json<{
+      ok: true;
+      data: { document: { display_name: string } };
+    }>(detailRes);
+    expect(detail.data.document.display_name).toBe("báo giá bảo an-1607.xml");
+  });
+
+  it("accepts JSON base64 upload (preferred behind Access/WAF)", async () => {
+    const xml = `<?xml version="1.0"?><Invoice><Number>INV-JSON-1</Number><Total>2</Total></Invoice>`;
+    const contentBase64 = Buffer.from(xml, "utf8").toString("base64");
+    const uploadRes = await SELF.fetch("http://localhost/api/documents", {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        filename: "invoice.xml",
+        displayName: "hoá đơn test.xml",
+        mimeType: "application/xml",
+        documentType: "invoice_xml",
+        contentBase64,
+      }),
+    });
+    expect(uploadRes.status).toBe(201);
+    const uploadBody = await json<{
+      ok: true;
+      data: { documentId: string; sha256: string };
+    }>(uploadRes);
+    expect(uploadBody.data.sha256).toHaveLength(64);
+    const detail = await json<{
+      ok: true;
+      data: { document: { display_name: string } };
+    }>(
+      await SELF.fetch(
+        `http://localhost/api/documents/${uploadBody.data.documentId}`,
+      ),
+    );
+    expect(detail.data.document.display_name).toBe("hoá đơn test.xml");
+  });
 });
 
 describe("queue idempotency key", () => {

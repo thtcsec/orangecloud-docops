@@ -1,4 +1,5 @@
 import type { Context } from "hono";
+import type { ContentfulStatusCode } from "hono/utils/http-status";
 import type { AppVariables } from "./middleware/context";
 import type { ApiFailure, ApiSuccess } from "@shared/domain";
 
@@ -28,5 +29,5 @@ export function fail(
   if (status === 429 && !c.res.headers.get("Retry-After")) {
     c.header("Retry-After", "60");
   }
-  return c.json(body, status as 400);
+  return c.json(body, status as ContentfulStatusCode);
 }

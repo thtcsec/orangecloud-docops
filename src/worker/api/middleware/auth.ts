@@ -2,6 +2,7 @@ import { createMiddleware } from "hono/factory";
 import { resolvePrincipal } from "../../auth/access";
 import type { AppVariables } from "./context";
 import type { UserRole } from "@shared/domain";
+import { normalizeRole } from "@shared/domain";
 import { fail } from "../response";
 
 export const requireAuth = createMiddleware<{
@@ -25,7 +26,8 @@ export function requireRoles(...roles: UserRole[]) {
     if (!principal) {
       return fail(c, 401, "UNAUTHORIZED", "Authentication required");
     }
-    if (!roles.includes(principal.role)) {
+    const role = normalizeRole(principal.role);
+    if (!roles.includes(role)) {
       return fail(c, 403, "FORBIDDEN", "Insufficient permissions");
     }
     await next();

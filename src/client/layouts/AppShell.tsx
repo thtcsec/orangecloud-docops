@@ -1,7 +1,7 @@
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { accessStartUrl } from "../lib/access";
-import { apiGet } from "../lib/api";
+import { ApiError, apiGet } from "../lib/api";
 import { appPath } from "../lib/paths";
 import { BrandLogo } from "../components/BrandLogo";
 import {
@@ -10,7 +10,7 @@ import {
 } from "../components/HeaderControls";
 import { UserMenu } from "../components/UserMenu";
 import { SiteFooter } from "../components/SiteFooter";
-import { QueryErrorState } from "../components/ui";
+import { QueryErrorState, AppShellSkeleton, UserChipSkeleton } from "../components/ui";
 import { useI18n } from "../i18n";
 
 type Session = {
@@ -23,6 +23,15 @@ type Session = {
     authSource: string;
   };
 };
+
+function isAccessSessionError(err: unknown): boolean {
+  if (!(err instanceof ApiError)) return false;
+  return (
+    err.code === "ACCESS_REDIRECT" ||
+    err.code === "UNAUTHORIZED" ||
+    err.status === 401
+  );
+}
 
 export function AppShell() {
   const { t } = useI18n();
@@ -43,6 +52,8 @@ export function AppShell() {
     { to: appPath("/settings/integrations"), label: t.nav.integrations },
   ];
 
+  const accessError = session.isError && isAccessSessionError(session.error);
+
   return (
     <div className="flex min-h-full flex-col">
       <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white backdrop-blur-sm dark:border-slate-800 dark:bg-slate-950">
@@ -60,13 +71,7 @@ export function AppShell() {
                 {t.session.notAuthenticated}
               </div>
             ) : (
-              <div className="inline-flex items-center gap-2 text-sm text-ink-500">
-                <span
-                  className="inline-block size-3 animate-spin rounded-full border-2 border-slate-300 border-t-accent-500"
-                  aria-hidden
-                />
-                {t.session.resolving}
-              </div>
+              <UserChipSkeleton />
             )}
           </div>
         </div>
@@ -94,25 +99,27 @@ export function AppShell() {
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6">
         <div key={location.pathname} className="page-enter">
           {session.isError ? (
-            <QueryErrorState
-              title={t.session.accessRequiredTitle}
-              message={t.session.accessRequiredBody}
-              onRetry={() => {
-                // Hit Access-protected /api/auth/start so CF sets CF_Authorization,
-                // then bounce back into /app (reload of /app alone is not enough if
-                // Access destinations only cover api*).
-                window.location.assign(accessStartUrl(appPath("/dashboard")));
-              }}
-              retryLabel={t.session.reload}
-            />
-          ) : session.isLoading ? (
-            <div className="animate-fade-in flex items-center gap-3 py-10 text-base text-ink-500">
-              <span
-                className="inline-block size-4 animate-spin rounded-full border-2 border-slate-300 border-t-accent-500"
-                aria-hidden
+            accessError ? (
+              <QueryErrorState
+                title={t.session.accessRequiredTitle}
+                message={t.session.accessRequiredBody}
+                onRetry={() => {
+                  window.location.assign(accessStartUrl(appPath("/dashboard")));
+                }}
+                retryLabel={t.session.reload}
               />
-              {t.session.resolving}
-            </div>
+            ) : (
+              <QueryErrorState
+                title={t.session.loadFailedTitle}
+                message={
+                  (session.error as Error)?.message || t.session.loadFailedBody
+                }
+                onRetry={() => void session.refetch()}
+                retryLabel={t.session.retry}
+              />
+            )
+          ) : session.isLoading ? (
+            <AppShellSkeleton />
           ) : (
             <Outlet />
           )}
