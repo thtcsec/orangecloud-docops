@@ -649,6 +649,10 @@ export const vi: TranslationSchema = {
     logoutConfirmTitle: "Xác nhận đăng xuất",
     logoutConfirmBody: "Bạn có chắc chắn muốn đăng xuất khỏi phiên làm việc hiện tại?",
     cfAccessNote: "Hoặc đăng nhập thông qua Zero Trust Cloudflare Access",
+    cfAccessButton: "Đăng nhập với Cloudflare Access",
+    cfAccessBadge: "Nội bộ",
+    cfAccessDescription: "Dành cho cán bộ & nhân viên nội bộ (Zero Trust SSO)",
+    orDivider: "hoặc đăng nhập bằng tài khoản",
   },
 };
 

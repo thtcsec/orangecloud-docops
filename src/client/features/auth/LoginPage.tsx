@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router-dom";
 import { apiGet, apiPostJson } from "../../lib/api";
 import { appPath } from "../../lib/paths";
+import { accessStartUrl } from "../../lib/access";
 import { Button, ErrorBanner, Field, Input } from "../../components/ui";
 import { BrandLogo } from "../../components/BrandLogo";
 import { LanguageToggle, ThemeToggle } from "../../components/HeaderControls";
@@ -33,7 +34,6 @@ export function LoginPage() {
       window.location.replace(redirectUrl);
     }
   }, [session.data, redirectUrl]);
-
 
   const loginMutation = useMutation({
     mutationFn: () =>
@@ -148,8 +148,8 @@ export function LoginPage() {
         </div>
 
         {/* Center Form Container */}
-        <div className="mx-auto w-full max-w-md py-8">
-          <div className="mb-8">
+        <div className="mx-auto w-full max-w-md py-6">
+          <div className="mb-6">
             <h1 className="text-2xl font-bold tracking-tight text-ink-950 sm:text-3xl">
               {t.auth.loginTitle}
             </h1>
@@ -159,6 +159,50 @@ export function LoginPage() {
           </div>
 
           <div className="rounded-2xl border border-slate-200 bg-white p-7 shadow-xl shadow-slate-200/50 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none">
+            {/* Cloudflare Access SSO Button */}
+            <div className="mb-6">
+              <button
+                type="button"
+                onClick={() => {
+                  window.location.assign(accessStartUrl(redirectUrl));
+                }}
+                className="group flex w-full items-center justify-between gap-3 rounded-xl border border-orange-200/90 bg-orange-50/60 p-3.5 text-left transition hover:border-orange-300 hover:bg-orange-100/60 dark:border-orange-950/70 dark:bg-orange-950/20 dark:hover:border-orange-900 dark:hover:bg-orange-950/40"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-orange-500 text-base text-white font-bold shadow-sm shadow-orange-500/30">
+                    ☁️
+                  </span>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold text-ink-950 group-hover:text-orange-600 dark:group-hover:text-orange-400">
+                        {t.auth.cfAccessButton}
+                      </span>
+                      <span className="rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-bold tracking-wider text-orange-700 uppercase dark:bg-orange-950/60 dark:text-orange-300">
+                        {t.auth.cfAccessBadge}
+                      </span>
+                    </div>
+                    <p className="mt-0.5 text-xs text-ink-500">
+                      {t.auth.cfAccessDescription}
+                    </p>
+                  </div>
+                </div>
+                <span className="text-ink-400 transition group-hover:translate-x-0.5 group-hover:text-orange-600 dark:group-hover:text-orange-400">
+                  →
+                </span>
+              </button>
+            </div>
+
+            {/* Divider */}
+            <div className="relative mb-6 text-center">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-slate-200 dark:border-slate-800" />
+              </div>
+              <span className="relative bg-white px-3 text-xs font-medium text-ink-400 uppercase tracking-wider dark:bg-slate-900">
+                {t.auth.orDivider}
+              </span>
+            </div>
+
+            {/* Direct Email / Password Form */}
             <form onSubmit={handleSubmit} className="space-y-4">
               {errorMsg && <ErrorBanner message={errorMsg} />}
 
@@ -171,8 +215,8 @@ export function LoginPage() {
                   }
                   placeholder={t.auth.emailPlaceholder}
                   required
-                  autoComplete="email"
                   autoFocus
+                  autoComplete="email"
                 />
               </Field>
 

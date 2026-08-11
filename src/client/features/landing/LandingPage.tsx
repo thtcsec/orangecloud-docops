@@ -9,7 +9,6 @@ import { UserMenu } from "../../components/UserMenu";
 import { SiteFooter } from "../../components/SiteFooter";
 import { useI18n } from "../../i18n";
 import { apiGet } from "../../lib/api";
-import { accessStartUrl } from "../../lib/access";
 import { appPath } from "../../lib/paths";
 
 type Session = {
@@ -35,11 +34,9 @@ export function LandingPage() {
   });
 
   const isAuthenticated = Boolean(session.data?.user);
-  const appEntry = isAuthenticated
-    ? appPath("/dashboard")
-    : accessStartUrl(appPath("/dashboard"));
 
   return (
+
     <div className="flex min-h-full flex-col">
       <header className="border-b border-slate-200/80 bg-white/90 backdrop-blur dark:border-slate-800 dark:bg-slate-950/80">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-4">
@@ -49,27 +46,26 @@ export function LandingPage() {
             <ThemeToggle />
 
             {isAuthenticated && session.data?.user ? (
-              <UserMenu user={session.data.user} />
+              <>
+                <UserMenu user={session.data.user} />
+                <Link
+                  to={appPath("/dashboard")}
+                  className="rounded-md bg-accent-600 px-3.5 py-2 text-sm font-medium text-white transition hover:bg-accent-500"
+                >
+                  {t.nav.dashboard}
+                </Link>
+              </>
             ) : (
               <Link
                 to="/login"
-                className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-ink-800 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                className="rounded-md bg-accent-600 px-3.5 py-2 text-sm font-medium text-white transition hover:bg-accent-500"
               >
                 {t.auth.signIn}
               </Link>
             )}
-
-            <Link
-              to={appPath("/dashboard")}
-              className="rounded-md bg-accent-600 px-3.5 py-2 text-sm font-medium text-white transition hover:bg-accent-500"
-            >
-              {isAuthenticated ? t.nav.dashboard : t.landing.ctaPrimary}
-            </Link>
           </div>
         </div>
       </header>
-
-
 
       <main className="flex-1">
         <section className="relative overflow-hidden border-b border-slate-200/70 dark:border-slate-800">
@@ -91,12 +87,21 @@ export function LandingPage() {
                 ))}
               </div>
               <div className="mt-8 flex flex-wrap gap-3">
-                <a
-                  href={appEntry}
-                  className="rounded-md bg-accent-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-accent-500"
-                >
-                  {t.landing.ctaPrimary}
-                </a>
+                {isAuthenticated ? (
+                  <Link
+                    to={appPath("/dashboard")}
+                    className="rounded-md bg-accent-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-accent-500"
+                  >
+                    {t.nav.dashboard}
+                  </Link>
+                ) : (
+                  <Link
+                    to="/login"
+                    className="rounded-md bg-accent-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-accent-500"
+                  >
+                    {t.auth.signIn}
+                  </Link>
+                )}
                 <a
                   href="https://github.com/thtcsec/orangecloud-docops/blob/master/docs/ARCHITECTURE.md"
                   className="rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-ink-800 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800"
@@ -105,6 +110,7 @@ export function LandingPage() {
                 </a>
               </div>
             </div>
+
 
             <aside
               className="animate-fade-in overflow-hidden rounded-xl border border-slate-800/80 bg-[#0b1220] text-slate-100 shadow-[0_24px_60px_-28px_rgba(15,23,42,0.55)]"

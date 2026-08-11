@@ -644,6 +644,10 @@ export const en = {
     logoutConfirmTitle: "Confirm Sign Out",
     logoutConfirmBody: "Are you sure you want to end your current session?",
     cfAccessNote: "Or authenticate via Cloudflare Access Zero Trust",
+    cfAccessButton: "Sign in with Cloudflare Access",
+    cfAccessBadge: "Internal",
+    cfAccessDescription: "For internal enterprise employees & SSO (Zero Trust)",
+    orDivider: "or sign in with credentials",
   },
 };
 
