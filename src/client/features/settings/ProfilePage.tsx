@@ -30,7 +30,7 @@ export function ProfilePage() {
     queryFn: () => apiGet<Session>("/api/session"),
   });
 
-  if (session.isLoading) return <DetailSkeleton />;
+  if (session.isPending) return <DetailSkeleton />;
   if (session.isError) {
     return (
       <QueryErrorState
@@ -42,19 +42,20 @@ export function ProfilePage() {
     );
   }
 
-  const user = session.data!.user;
-  const role = normalizeRole(user.role);
-  const roleKey = role as keyof typeof t.roles.labels;
-  const roleLabel = t.roles.labels[roleKey] || user.role;
-  const roleSummary = t.roles.summaries[roleKey] || t.roles.summaries.viewer;
-  const capabilities = t.roles.capabilities[roleKey] || t.roles.capabilities.viewer;
-  const authLabel =
-    user.authSource === "direct_session"
-      ? t.roles.authDirect
-      : user.authSource === "cloudflare_access"
-        ? t.roles.authAccess
-        : t.roles.authLocal;
+  const user = session.data?.user;
+  if (!user) return null;
 
+  const role = normalizeRole(user.role);
+  const roleLabel = t.roles.labels[role] ?? user.role;
+  const roleSummary = t.roles.summaries[role] ?? t.roles.summaries.viewer;
+  const capabilities = t.roles.capabilities[role] ?? t.roles.capabilities.viewer;
+
+  const authLabels: Record<string, string> = {
+    direct_session: t.roles.authDirect,
+    cloudflare_access: t.roles.authAccess,
+    local_dev: t.roles.authLocal,
+  };
+  const authLabel = authLabels[user.authSource] ?? t.roles.authLocal;
 
   return (
     <div>
@@ -66,40 +67,47 @@ export function ProfilePage() {
       <div className="grid max-w-3xl gap-4 lg:grid-cols-2">
         <Panel>
           <PanelHeader title={user.displayName} subtitle={user.email} />
-          <dl className="space-y-4 px-4 py-4 text-sm">
-            <div>
-              <dt className="text-xs font-semibold uppercase tracking-wide text-ink-500">
-                {t.roles.roleLabel}
-              </dt>
-              <dd className="mt-1 font-medium text-ink-900">{roleLabel}</dd>
-              <dd className="mt-1 text-ink-500">{roleSummary}</dd>
+          <div className="space-y-4 px-4 py-4 text-sm">
+            <dl className="space-y-4">
+              <div>
+                <dt className="text-xs font-semibold uppercase tracking-wide text-ink-500">
+                  {t.roles.roleLabel}
+                </dt>
+                <dd className="mt-1 font-medium text-ink-900">{roleLabel}</dd>
+                <dd className="mt-1 text-ink-500">{roleSummary}</dd>
+              </div>
+              <div>
+                <dt className="text-xs font-semibold uppercase tracking-wide text-ink-500">
+                  {t.roles.signInLabel}
+                </dt>
+                <dd className="mt-1 text-ink-800">{authLabel}</dd>
+              </div>
+              <div>
+                <dt className="text-xs font-semibold uppercase tracking-wide text-ink-500">
+                  {t.roles.organizationLabel}
+                </dt>
+                <dd className="mt-1 font-mono text-xs text-ink-700">
+                  {user.organizationId}
+                </dd>
+              </div>
+            </dl>
+
+            <div className="border-t border-slate-100 pt-3 dark:border-slate-800">
+              <p className="text-xs leading-relaxed text-ink-500">
+                {t.roles.manageHint}
+              </p>
+              {roleIsAdmin(role) && (
+                <div className="mt-2">
+                  <Link
+                    to={appPath("/admin")}
+                    className="inline-flex text-sm font-medium text-accent-700 hover:underline dark:text-accent-400"
+                  >
+                    {t.roles.manageUsersLink}
+                  </Link>
+                </div>
+              )}
             </div>
-            <div>
-              <dt className="text-xs font-semibold uppercase tracking-wide text-ink-500">
-                {t.roles.signInLabel}
-              </dt>
-              <dd className="mt-1 text-ink-800">{authLabel}</dd>
-            </div>
-            <div>
-              <dt className="text-xs font-semibold uppercase tracking-wide text-ink-500">
-                {t.roles.organizationLabel}
-              </dt>
-              <dd className="mt-1 font-mono text-xs text-ink-700">
-                {user.organizationId}
-              </dd>
-            </div>
-            <p className="border-t border-slate-100 pt-3 text-xs leading-relaxed text-ink-500 dark:border-slate-800">
-              {t.roles.manageHint}
-            </p>
-            {roleIsAdmin(role) ? (
-              <Link
-                to={appPath("/admin")}
-                className="inline-flex text-sm font-medium text-accent-700 hover:underline dark:text-accent-400"
-              >
-                {t.roles.manageUsersLink}
-              </Link>
-            ) : null}
-          </dl>
+          </div>
         </Panel>
 
         <Panel>
@@ -119,3 +127,4 @@ export function ProfilePage() {
     </div>
   );
 }
+
