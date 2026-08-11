@@ -46,8 +46,11 @@ export function AppRoutes() {
       <Route path="/privacy" element={<PrivacyPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+      <Route path="/app/login" element={<LoginPage />} />
+      <Route path="/app/register" element={<RegisterPage />} />
 
       <Route path={APP_BASE} element={<AppShell />}>
+
         <Route index element={<Navigate to="dashboard" replace />} />
 
         <Route path="dashboard" element={<DashboardPage />} />

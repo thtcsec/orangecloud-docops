@@ -119,14 +119,34 @@ export function AppShell() {
         <div key={location.pathname} className="page-enter">
           {session.isError ? (
             accessError ? (
-              <QueryErrorState
-                title={t.session.accessRequiredTitle}
-                message={t.session.accessRequiredBody}
-                onRetry={() => {
-                  window.location.assign(accessStartUrl(appPath("/dashboard")));
-                }}
-                retryLabel={t.session.reload}
-              />
+              <div className="mx-auto max-w-lg rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-lg dark:border-slate-800 dark:bg-slate-900">
+                <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-accent-50 text-xl font-bold text-accent-600 dark:bg-accent-950/40 dark:text-accent-400">
+                  🔐
+                </div>
+                <h2 className="mt-4 text-xl font-bold text-ink-950">
+                  {t.session.accessRequiredTitle}
+                </h2>
+                <p className="mt-2 text-sm text-ink-500">
+                  {t.session.accessRequiredBody}
+                </p>
+                <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
+                  <NavLink
+                    to="/login"
+                    className="inline-flex justify-center rounded-lg bg-accent-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-accent-500"
+                  >
+                    {t.auth.signIn}
+                  </NavLink>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      window.location.assign(accessStartUrl(appPath("/dashboard")));
+                    }}
+                    className="inline-flex justify-center rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-ink-800 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                  >
+                    {t.session.reload}
+                  </button>
+                </div>
+              </div>
             ) : (
               <QueryErrorState
                 title={t.session.loadFailedTitle}
@@ -137,11 +157,12 @@ export function AppShell() {
                 retryLabel={t.session.retry}
               />
             )
-          ) : session.isLoading ? (
+          ) : session.isPending ? (
             <AppShellSkeleton />
           ) : (
             <Outlet />
           )}
+
         </div>
       </main>
       <SiteFooter compact />
