@@ -1,42 +1,74 @@
 import { BrandLogo } from "../../components/BrandLogo";
 import { Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import {
   LanguageToggle,
   ThemeToggle,
 } from "../../components/HeaderControls";
+import { UserMenu } from "../../components/UserMenu";
 import { SiteFooter } from "../../components/SiteFooter";
 import { useI18n } from "../../i18n";
+import { apiGet } from "../../lib/api";
 import { accessStartUrl } from "../../lib/access";
 import { appPath } from "../../lib/paths";
+
+type Session = {
+  user: {
+    id: string;
+    email: string;
+    displayName: string;
+    role: string;
+    organizationId: string;
+    authSource: string;
+  };
+};
 
 export function LandingPage() {
   const { t } = useI18n();
   const preview = t.landing.preview;
-  const appEntry = accessStartUrl(appPath("/dashboard"));
+
+  const session = useQuery({
+    queryKey: ["session"],
+    queryFn: () => apiGet<Session>("/api/session"),
+    retry: false,
+    staleTime: 60_000,
+  });
+
+  const isAuthenticated = Boolean(session.data?.user);
+  const appEntry = isAuthenticated
+    ? appPath("/dashboard")
+    : accessStartUrl(appPath("/dashboard"));
 
   return (
     <div className="flex min-h-full flex-col">
       <header className="border-b border-slate-200/80 bg-white/90 backdrop-blur dark:border-slate-800 dark:bg-slate-950/80">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-4">
           <BrandLogo variant="auto" className="h-9 w-auto max-w-[260px]" />
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             <LanguageToggle />
             <ThemeToggle />
+
+            {isAuthenticated && session.data?.user ? (
+              <UserMenu user={session.data.user} />
+            ) : (
+              <Link
+                to="/login"
+                className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-ink-800 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+              >
+                {t.auth.signIn}
+              </Link>
+            )}
+
             <Link
-              to="/login"
-              className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-ink-800 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+              to={appPath("/dashboard")}
+              className="rounded-md bg-accent-600 px-3.5 py-2 text-sm font-medium text-white transition hover:bg-accent-500"
             >
-              {t.auth.signIn}
+              {isAuthenticated ? t.nav.dashboard : t.landing.ctaPrimary}
             </Link>
-            <a
-              href={appEntry}
-              className="rounded-md bg-accent-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-accent-500"
-            >
-              {t.landing.ctaPrimary}
-            </a>
           </div>
         </div>
       </header>
+
 
 
       <main className="flex-1">

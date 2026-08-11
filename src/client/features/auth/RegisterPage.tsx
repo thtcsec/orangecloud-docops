@@ -1,7 +1,7 @@
-import React, { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import React, { useEffect, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { apiPostJson } from "../../lib/api";
+import { apiGet, apiPostJson } from "../../lib/api";
 import { appPath } from "../../lib/paths";
 import { Button, ErrorBanner, Field, Input } from "../../components/ui";
 import { BrandLogo } from "../../components/BrandLogo";
@@ -17,6 +17,22 @@ export function RegisterPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // Check if user is already authenticated (e.g. via CF Access or existing session)
+  const session = useQuery({
+    queryKey: ["session"],
+    queryFn: () =>
+      apiGet<{ user: { id: string; email: string; role: string } }>("/api/session"),
+    retry: false,
+    staleTime: 30_000,
+  });
+
+  useEffect(() => {
+    if (session.data?.user) {
+      window.location.replace(appPath("/dashboard"));
+    }
+  }, [session.data]);
+
 
   const registerMutation = useMutation({
     mutationFn: () =>
