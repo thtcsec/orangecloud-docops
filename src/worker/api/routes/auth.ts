@@ -10,12 +10,16 @@ import {
   createSessionToken,
 } from "../../auth/session";
 import { resolvePrincipal } from "../../auth/access";
+import type { UserRow } from "../../db/schema/types";
 import {
   countTotalUsers,
   createUserWithPassword,
   findUserByEmail,
+  findUserById,
   normalizeUserStatus,
+  updateUserPassword,
 } from "../../db/repositories/users";
+
 import { ensureDefaultOrganization } from "../../db/repositories/organizations";
 import { appendAuditEvent } from "../../domain/audit/service";
 import { createId, nowIso } from "../../utils/id";
@@ -64,7 +68,7 @@ authRoutes.post("/register", async (c) => {
   });
 
   const existing = await findUserByEmail(c.env.DOCOPS_DB, org.id, email);
-  if (existing) {
+  if (existing && existing.password_hash) {
     return fail(
       c,
       409,
@@ -73,27 +77,37 @@ authRoutes.post("/register", async (c) => {
     );
   }
 
-  // Determine initial role: First user or bootstrap admin is 'admin', subsequent users are 'viewer'
-  const totalUsers = await countTotalUsers(c.env.DOCOPS_DB, org.id);
-  const bootstrapEmails = (c.env.BOOTSTRAP_ADMIN_EMAILS || "")
-    .split(",")
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean);
-  const shouldBeAdmin =
-    totalUsers === 0 || bootstrapEmails.includes(email.toLowerCase());
-  const initialRole = shouldBeAdmin ? "admin" : "viewer";
-
   const passwordHash = await hashPassword(password);
-  const user = await createUserWithPassword(c.env.DOCOPS_DB, {
-    id: createId("usr"),
-    organizationId: org.id,
-    email: email.toLowerCase(),
-    displayName,
-    passwordHash,
-    role: initialRole,
-    status: "active",
-    now,
-  });
+  let user: UserRow;
+
+  if (existing && !existing.password_hash) {
+    // User already exists via Cloudflare Access without password; set their password now.
+    await updateUserPassword(c.env.DOCOPS_DB, existing.id, org.id, passwordHash, now);
+    const updated = await findUserById(c.env.DOCOPS_DB, existing.id);
+    user = updated || existing;
+  } else {
+    // Determine initial role: First user or bootstrap admin is 'admin', subsequent users are 'viewer'
+    const totalUsers = await countTotalUsers(c.env.DOCOPS_DB, org.id);
+    const bootstrapEmails = (c.env.BOOTSTRAP_ADMIN_EMAILS || "")
+      .split(",")
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean);
+    const shouldBeAdmin =
+      totalUsers === 0 || bootstrapEmails.includes(email.toLowerCase());
+    const initialRole = shouldBeAdmin ? "admin" : "viewer";
+
+    user = await createUserWithPassword(c.env.DOCOPS_DB, {
+      id: createId("usr"),
+      organizationId: org.id,
+      email: email.toLowerCase(),
+      displayName,
+      passwordHash,
+      role: initialRole,
+      status: "active",
+      now,
+    });
+  }
+
 
   await appendAuditEvent(c.env.DOCOPS_DB, {
     organizationId: org.id,
