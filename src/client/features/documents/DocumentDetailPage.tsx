@@ -507,7 +507,11 @@ export function DocumentDetailPage() {
       void qc.invalidateQueries({ queryKey: ["dashboard"] });
       void qc.invalidateQueries({ queryKey: ["reviews"] });
     },
+    onSettled: () => {
+      setConfirmReprocess(false);
+    },
   });
+
 
   if (query.isLoading) return <DetailSkeleton />;
   if (query.isError) {

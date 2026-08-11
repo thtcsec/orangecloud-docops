@@ -31,8 +31,8 @@ export const securityHeaders = createMiddleware<{
       "img-src 'self' data: blob:",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com data:",
-      "script-src 'self'",
-      "connect-src 'self'",
+      "script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com",
+      "connect-src 'self' https://cloudflareinsights.com https://static.cloudflareinsights.com",
       "frame-src 'self' blob:",
       "frame-ancestors 'none'",
       "base-uri 'self'",
@@ -73,14 +73,15 @@ export function withSecurityHeaders(
       "img-src 'self' data: blob:",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com data:",
-      "script-src 'self'",
-      "connect-src 'self'",
+      "script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com",
+      "connect-src 'self' https://cloudflareinsights.com https://static.cloudflareinsights.com",
       "frame-src 'self' blob:",
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",
     ].join("; "),
   );
+
   return new Response(response.body, {
     status: response.status,
     statusText: response.statusText,
