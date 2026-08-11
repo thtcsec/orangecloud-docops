@@ -613,7 +613,38 @@ export const en = {
       },
     },
   },
+  auth: {
+    loginTitle: "Sign in to your account",
+    loginSubtitle: "Enter your credentials to access OrangeCloud DocOps",
+    registerTitle: "Create an account",
+    registerSubtitle: "Start managing your Contract-to-Pay documents and cases",
+    email: "Work Email",
+    emailPlaceholder: "alex@company.com",
+    password: "Password",
+    passwordPlaceholder: "••••••••",
+    confirmPassword: "Confirm Password",
+    confirmPasswordPlaceholder: "••••••••",
+    displayName: "Display Name",
+    displayNamePlaceholder: "Alex Nguyen",
+    loginAction: "Sign In",
+    loggingIn: "Signing in…",
+    registerAction: "Create Account",
+    registering: "Creating account…",
+    dontHaveAccount: "Don't have an account?",
+    alreadyHaveAccount: "Already have an account?",
+    signUp: "Sign up now",
+    signIn: "Sign in",
+    passwordMismatch: "Passwords do not match.",
+    passwordTooShort: "Password must be at least 8 characters.",
+    loginSuccess: "Signed in successfully!",
+    registerSuccess: "Account registered successfully!",
+    logout: "Log out",
+    logoutConfirmTitle: "Confirm Sign Out",
+    logoutConfirmBody: "Are you sure you want to end your current session?",
+    cfAccessNote: "Or authenticate via Cloudflare Access Zero Trust",
+  },
 };
+
 
 type DeepString<T> = {
   [K in keyof T]: T[K] extends string

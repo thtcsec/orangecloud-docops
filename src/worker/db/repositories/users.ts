@@ -154,6 +154,70 @@ export async function updateUser(
   return findUserById(db, input.id);
 }
 
+export async function createUserWithPassword(
+  db: Db,
+  input: {
+    id: string;
+    organizationId: string;
+    email: string;
+    displayName: string;
+    passwordHash: string;
+    role: UserRole;
+    status?: UserStatus;
+    now: string;
+  },
+): Promise<UserRow> {
+  const status = input.status ?? "active";
+  await db
+    .prepare(
+      `INSERT INTO users (id, organization_id, email, display_name, password_hash, role, status, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .bind(
+      input.id,
+      input.organizationId,
+      input.email.toLowerCase(),
+      input.displayName,
+      input.passwordHash,
+      input.role,
+      status,
+      input.now,
+      input.now,
+    )
+    .run();
+  const user = await findUserById(db, input.id);
+  if (!user) throw new Error("Failed to create user with password");
+  return user;
+}
+
+export async function updateUserPassword(
+  db: Db,
+  userId: string,
+  organizationId: string,
+  passwordHash: string,
+  now: string,
+): Promise<boolean> {
+  const res = await db
+    .prepare(
+      `UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ? AND organization_id = ?`,
+    )
+    .bind(passwordHash, now, userId, organizationId)
+    .run();
+  return (res.meta.changes ?? 0) > 0;
+}
+
+export async function countTotalUsers(
+  db: Db,
+  organizationId: string,
+): Promise<number> {
+  const row = await first<{ n: number }>(
+    db
+      .prepare(`SELECT COUNT(*) as n FROM users WHERE organization_id = ?`)
+      .bind(organizationId),
+  );
+  return row?.n ?? 0;
+}
+
 export function normalizeUserStatus(value: unknown): UserStatus {
   return value === "disabled" ? "disabled" : "active";
 }

@@ -4,9 +4,16 @@ import { normalizeRole } from "@shared/domain";
 import { createId, nowIso } from "../utils/id";
 import { ensureDefaultOrganization } from "../db/repositories/organizations";
 import type { OrganizationRow } from "../db/schema/types";
-import { findUserByEmail, normalizeUserStatus, upsertLocalUser } from "../db/repositories/users";
+import {
+  findUserByEmail,
+  findUserById,
+  normalizeUserStatus,
+  upsertLocalUser,
+} from "../db/repositories/users";
+import { SESSION_COOKIE_NAME, verifySessionToken } from "./session";
 import type { AppPrincipal } from "./principal";
 import { logger } from "../utils/logger";
+
 
 /** Isolate-local cache for the bootstrap org (stable per Worker isolate). */
 let cachedDefaultOrg: OrganizationRow | null = null;
@@ -273,7 +280,33 @@ export async function resolvePrincipal(
   const now = nowIso();
   const org = await getDefaultOrg(env, now);
 
+  // 1. Check Direct Session Token (Cookie or Bearer header)
+  const cookieSessionToken = readCookie(request, SESSION_COOKIE_NAME);
+  const authHeader = request.headers.get("Authorization");
+  const bearerToken = authHeader?.startsWith("Bearer ")
+    ? authHeader.slice(7).trim()
+    : null;
+  const sessionToken = cookieSessionToken || bearerToken;
+
+  if (sessionToken) {
+    const session = await verifySessionToken(sessionToken, env);
+    if (session) {
+      const user = await findUserById(env.DOCOPS_DB, session.userId);
+      if (user && normalizeUserStatus(user.status) === "active") {
+        return {
+          userId: user.id,
+          organizationId: user.organization_id,
+          email: user.email,
+          displayName: user.display_name,
+          role: normalizeRole(user.role),
+          authSource: "direct_session",
+        };
+      }
+    }
+  }
+
   if (isLocalAuthEnabled(env)) {
+
     const email =
       env.LOCAL_DEV_AUTH_EMAIL?.trim() ||
       request.headers.get("x-docops-dev-email")?.trim();

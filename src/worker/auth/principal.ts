@@ -12,8 +12,9 @@ export type AppPrincipal = {
   email: string;
   displayName: string;
   role: UserRole;
-  authSource: "cloudflare_access" | "local_dev";
+  authSource: "cloudflare_access" | "local_dev" | "direct_session";
 };
+
 
 export function canUpload(role: UserRole): boolean {
   return roleCanUpload(role);

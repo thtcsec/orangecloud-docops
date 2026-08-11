@@ -117,9 +117,30 @@ export function UserMenu({ user }: { user: SessionUser }) {
                 {t.nav.admin}
               </Link>
             ) : null}
+
+            <button
+              type="button"
+              role="menuitem"
+              onClick={async () => {
+                setOpen(false);
+                try {
+                  await fetch("/api/auth/logout", {
+                    method: "POST",
+                    credentials: "include",
+                  });
+                } catch {
+                  // Ignore network errors on logout
+                }
+                window.location.assign(appPath("/login"));
+              }}
+              className="mt-1 block w-full rounded-md px-2 py-2 text-left text-sm font-medium text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/30"
+            >
+              🚪 {t.auth.logout}
+            </button>
           </div>
         </div>
       ) : null}
     </div>
   );
 }
+

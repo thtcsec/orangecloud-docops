@@ -25,9 +25,11 @@ export type UserRow = {
   display_name: string;
   role: UserRole;
   status: "active" | "disabled";
+  password_hash?: string | null;
   created_at: string;
   updated_at: string;
 };
+
 
 export type DocumentRow = {
   id: string;

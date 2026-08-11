@@ -17,6 +17,8 @@ import { IntegrationsPage } from "../features/integrations/IntegrationsPage";
 import { ProfilePage } from "../features/settings/ProfilePage";
 import { UsersPage } from "../features/settings/UsersPage";
 import { PrivacyPage } from "../features/privacy/PrivacyPage";
+import { LoginPage } from "../features/auth/LoginPage";
+import { RegisterPage } from "../features/auth/RegisterPage";
 import { APP_BASE, LEGACY_APP_SEGMENTS } from "../lib/paths";
 
 /** Full browser navigation so Cloudflare Access can intercept /app/*. */
@@ -42,9 +44,12 @@ export function AppRoutes() {
     <Routes>
       <Route path="/" element={<LandingPage />} />
       <Route path="/privacy" element={<PrivacyPage />} />
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
 
       <Route path={APP_BASE} element={<AppShell />}>
         <Route index element={<Navigate to="dashboard" replace />} />
+
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="documents" element={<DocumentsPage />} />
         <Route path="documents/upload" element={<DocumentUploadPage />} />

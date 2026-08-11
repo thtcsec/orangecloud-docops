@@ -5,7 +5,9 @@ import { securityHeaders } from "./middleware/security-headers";
 import { apiRateLimit } from "./middleware/rate-limit";
 import { healthRoutes } from "./routes/health";
 import { authStartRoutes } from "./routes/auth-start";
+import { authRoutes } from "./routes/auth";
 import { sessionRoutes } from "./routes/session";
+
 import { dashboardRoutes } from "./routes/dashboard";
 import { documentRoutes } from "./routes/documents";
 import { caseRoutes } from "./routes/cases";
@@ -59,8 +61,10 @@ export function createApp() {
     }
     return apiRateLimit(c, next);
   });
+  api.route("/auth", authRoutes);
   api.route("/", sessionRoutes);
   api.route("/", dashboardRoutes);
+
   api.route("/", documentRoutes);
   api.route("/", caseRoutes);
   api.route("/", reviewRoutes);
